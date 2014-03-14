@@ -30,6 +30,7 @@ import javax.servlet.ServletException;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.net.UnknownHostException;
 
 /**
  * Created by erwin on 13/03/14.
@@ -97,46 +98,48 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
                 return FormValidation.ok();
             }
 
-//            URL url = new URL(stashApiUrl);
-//
-//
-//            HttpHost target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
-//            CredentialsProvider credsProvider = new BasicCredentialsProvider();
-//            credsProvider.setCredentials(
-//                    new AuthScope(target.getHostName(), target.getPort()),
-//                    new UsernamePasswordCredentials(username, password));
-//            CloseableHttpClient httpclient = HttpClients.custom()
-//                    .setDefaultCredentialsProvider(credsProvider).build();
-//
-//            try {
-//
-//                // Create AuthCache instance
-//                AuthCache authCache = new BasicAuthCache();
-//                // Generate BASIC scheme object and add it to the local
-//                // auth cache
-//                BasicScheme basicAuth = new BasicScheme();
-//                authCache.put(target, basicAuth);
-//
-//                // Add AuthCache to the execution context
-//                HttpClientContext localContext = HttpClientContext.create();
-//                localContext.setAuthCache(authCache);
-//
-//                HttpGet httpget = new HttpGet(url.getPath());
-//
-//                System.out.println("Executing request " + httpget.getRequestLine() + " to target " + target);
-//                for (int i = 0; i < 3; i++) {
-//                    CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
-//                    try {
-//                        return FormValidation.error("status code: {}",response.getStatusLine().getStatusCode());
-//
-//                    } finally {
-//                        response.close();
-//                    }
-//                }
-//            } finally {
-//                httpclient.close();
-//            }
-            return FormValidation.error("geen eind");
+            URL url = new URL(stashApiUrl);
+
+
+            HttpHost target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
+            CredentialsProvider credsProvider = new BasicCredentialsProvider();
+            credsProvider.setCredentials(
+                    new AuthScope(target.getHostName(), target.getPort()),
+                    new UsernamePasswordCredentials(username, password));
+            CloseableHttpClient httpclient = HttpClients.custom()
+                    .setDefaultCredentialsProvider(credsProvider).build();
+
+            try {
+
+                // Create AuthCache instance
+                AuthCache authCache = new BasicAuthCache();
+                // Generate BASIC scheme object and add it to the local
+                // auth cache
+                BasicScheme basicAuth = new BasicScheme();
+                authCache.put(target, basicAuth);
+
+                // Add AuthCache to the execution context
+                HttpClientContext localContext = HttpClientContext.create();
+                localContext.setAuthCache(authCache);
+
+                HttpGet httpget = new HttpGet(url.getPath());
+
+                System.out.println("Executing request " + httpget.getRequestLine() + " to target " + target);
+
+                CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
+                try {
+                    return FormValidation.warning("status code: {}",response.getStatusLine().getReasonPhrase());
+
+                } finally {
+                    response.close();
+                }
+            }
+            catch(UnknownHostException e){
+                return FormValidation.error("Couldn't connect with server");
+            } finally {
+                httpclient.close();
+            }
+            //return FormValidation.ok();
         }
 
         public FormValidation doCheckPassword(@QueryParameter final String stashApiUrl, @QueryParameter final String username, @QueryParameter final String password) throws IOException, ServletException {

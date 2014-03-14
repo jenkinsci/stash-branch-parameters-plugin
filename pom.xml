@@ -9,6 +9,7 @@
       <relativePath />
   </parent>
 
+  <groupId>org.jenkins-ci.plugins</groupId>
   <artifactId>StashBranchParameter</artifactId>
   <version>1.0-SNAPSHOT</version>
   <name>Stash Branch Parameter Plug-In</name>
