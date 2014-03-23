@@ -4,14 +4,15 @@
     <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-      <version>1.424.6</version>
+      <version>1.540</version>
       <!-- which version of Hudson is this plugin built against? -->
       <relativePath />
   </parent>
 
   <groupId>org.jenkins-ci.plugins</groupId>
   <artifactId>StashBranchParameter</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>0.1
+      return new ExtendedChoiceParameterValue(getName(), requestValues[0]);</version>
   <name>Stash Branch Parameter Plug-In</name>
   <packaging>hpi</packaging>
 
