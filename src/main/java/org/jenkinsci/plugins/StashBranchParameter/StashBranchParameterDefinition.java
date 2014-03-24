@@ -101,85 +101,16 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
         this.stashApiUrl = stashApiUrl;
     }
 
-    public List<String> getDefaultValueMap() throws IOException {
+    public Map<String, Map<String, String>> getDefaultValueMap() throws IOException {
         return computeDefaultValueMap();
     }
 
-    private List<String> computeDefaultValueMap() throws IOException {
-        List<String> list = new ArrayList<String>();
-        URL url = new URL(getStashApiUrl());
-
-        HttpHost target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
-        CredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(
-                new AuthScope(target.getHostName(), target.getPort()),
-                new UsernamePasswordCredentials(getUsername(), getPassword()));
-        CloseableHttpClient httpclient = HttpClients.custom()
-                .setDefaultCredentialsProvider(credsProvider).build();
-
-        try {
-
-            AuthCache authCache = new BasicAuthCache();
-            BasicScheme basicAuth = new BasicScheme();
-            authCache.put(target, basicAuth);
-            HttpClientContext localContext = HttpClientContext.create();
-            localContext.setAuthCache(authCache);
-            HttpGet httpget = new HttpGet(url.getPath());
-
-            CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
-            try{
-                HttpEntity entity = response.getEntity();
-                StringWriter writer = new StringWriter();
-                IOUtils.copy(entity.getContent(), writer);
-
-                JSONObject json = JSONObject.fromObject(writer.toString());
-                if(json.has("values")){
-                    JSONArray values = json.getJSONArray("values");
-                    Iterator<JSONObject> iterator = values.iterator();
-                    while(iterator.hasNext()){
-                        JSONObject branch = iterator.next();
-                        if(branch.has("displayId")){
-                            list.add(branch.getString("displayId"));
-                        }
-                    }
-                }
-            }finally {
-                response.close();
-            }
-
-        } catch (IOException e) {
-            throw e;
-        }finally {
-            httpclient.close();
-        }
-        return list;
-    }
-
-    private CloseableHttpResponse getResponse(Map<String, Boolean> map) throws IOException {
-        URL url = new URL(getStashApiUrl());
-
-        HttpHost target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
-        CredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(
-                new AuthScope(target.getHostName(), target.getPort()),
-                new UsernamePasswordCredentials(getUsername(), getPassword()));
-        CloseableHttpClient httpclient = HttpClients.custom()
-                .setDefaultCredentialsProvider(credsProvider).build();
-
-        try {
-            AuthCache authCache = new BasicAuthCache();
-            BasicScheme basicAuth = new BasicScheme();
-            authCache.put(target, basicAuth);
-            HttpClientContext localContext = HttpClientContext.create();
-            localContext.setAuthCache(authCache);
-            HttpGet httpget = new HttpGet(url.getPath());
-
-            CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
-                return response;
-
-        }finally {
-            httpclient.close();
-        }
+    private Map<String, Map<String, String>> computeDefaultValueMap() throws IOException {
+        StashConnector connector = new StashConnector(stashApiUrl,username,password);
+        Map<String,String> map = connector.getBranches();
+        map.putAll(connector.getTags());
+        Map<String, Map<String, String>> stringMapMap = MapsUtils.groupMap(map);
+        return stringMapMap;
     }
 
     @Extension
