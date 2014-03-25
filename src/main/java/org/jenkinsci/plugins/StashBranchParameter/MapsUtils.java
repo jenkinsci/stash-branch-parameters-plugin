@@ -2,9 +2,7 @@ package org.jenkinsci.plugins.StashBranchParameter;
 
 import java.util.*;
 
-/**
- * Created by erwin on 24/03/14.
- */
+
 public class MapsUtils {
     public static Map<String,Map<String,String>> groupMap(Map<String, String> map) {
         Set<Map.Entry<String, String>> entries = map.entrySet();
