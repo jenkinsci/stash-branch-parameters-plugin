@@ -11,7 +11,7 @@
 
   <groupId>org.jenkins-ci.plugins</groupId>
   <artifactId>StashBranchParameter</artifactId>
-  <version>0.1</version>
+  <version>0.1.3</version>
   <name>Stash Branch Parameter Plug-In</name>
   <packaging>hpi</packaging>
 

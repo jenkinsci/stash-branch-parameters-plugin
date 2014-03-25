@@ -72,10 +72,10 @@ public class StashConnector {
 
     public Map<String,String> getTags(){
         String path = url.getPath();
-        if(path.endsWith("branches")){
+        if(path.endsWith("/branches")){
             path = path.substring(0,path.indexOf("/branches"));
         }
-        if(!path.endsWith("tags")){
+        if(!path.endsWith("/tags")){
             path = path.concat("/tags");
         }
         path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
@@ -88,7 +88,8 @@ public class StashConnector {
             while(iterator.hasNext()){
                 JSONObject branch = iterator.next();
                 if(branch.has("displayId")){
-                    map.put(branch.getString("displayId"), "tags/".concat(branch.getString("displayId")));
+                    String value = "tags/".concat(branch.getString("displayId"));
+                    map.put(value,value);
                 }
             }
         }
