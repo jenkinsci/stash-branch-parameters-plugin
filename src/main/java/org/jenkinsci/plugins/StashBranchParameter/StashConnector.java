@@ -136,4 +136,24 @@ public class StashConnector {
         localContext = HttpClientContext.create();
         localContext.setAuthCache(authCache);
     }
+
+    public List<String> getProjects() {
+
+        String path = url.getPath();
+        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+        JSONObject json = getJson(path);
+
+        List<String> list = new LinkedList<String>();
+        if(json.has("values")){
+            JSONArray values = json.getJSONArray("values");
+            Iterator<JSONObject> iterator = values.iterator();
+            while(iterator.hasNext()){
+                JSONObject project = iterator.next();
+                if(project.has("key")){
+                    list.add(project.getString("key"));
+                }
+            }
+        }
+        return null;
+    }
 }
