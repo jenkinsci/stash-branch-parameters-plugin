@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.StashBranchParameter;
 
-import groovy.transform.Field;
 import hudson.Extension;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
@@ -8,43 +7,33 @@ import hudson.model.StringParameterValue;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
-import jenkins.model.GlobalConfiguration;
-import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import net.sf.json.util.JSONUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.AuthCache;
 import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.impl.auth.BasicScheme;
-import org.apache.http.impl.client.*;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.util.EntityUtils;
-import org.apache.tools.ant.Project;
-import org.apache.tools.ant.taskdefs.Property;
+import org.apache.http.impl.client.BasicAuthCache;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.export.Exported;
 
 import javax.servlet.ServletException;
-import java.io.File;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 /**
@@ -54,47 +43,23 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
 
     private static final Logger LOGGER = Logger.getLogger(StashBranchParameterDefinition.class.getName());
 
-    private String project;
-    private String repo;
-    protected List<String> projects;
+    private String repository;
 
     @DataBoundConstructor
-    public StashBranchParameterDefinition(String name, String description, String project, String repo) {
+    public StashBranchParameterDefinition(String name, String description, String repository) {
         super(name, description);
-        this.project = project;
-        this.repo = repo;
+        this.repository = repository;
     }
 
-    public String getProject() {
-        return "Poepject";
+    public String getRepository() {
+        LOGGER.info(repository);
+        LOGGER.info(getDescriptor().getRepo());
+        return repository;
     }
 
-    public void setProject(String project) {
-        this.project = project;
-    }
-
-    public String getRepo() {
-        return repo;
-    }
-
-    public void setRepo(String repo) {
-        this.repo = repo;
-    }
-
-    public List<String> getProjects() {
-        return projects;
-    }
-
-    public void setProjects(List<String> projects) {
-        this.projects = projects;
-    }
-
-    public  List<String> getAllProjects() throws MalformedURLException {
-        System.out.println("jaja");
-        LOGGER.warning("neenee");
-        StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(),getDescriptor().getUsername(),getDescriptor().getPassword().getPlainText());
-
-        return connector.getProjects();
+    public void setRepository(String repository) {
+        this.repository = repository;
+        getDescriptor().setRepo(repository);
     }
 
     @Override
@@ -115,10 +80,13 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
     }
 
     private Map<String, Map<String, String>> computeDefaultValueMap() throws IOException {
-
+        String project = repository.split("/")[0];
+        String repo = repository.split("/")[1];
         StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(),getDescriptor().getUsername(),getDescriptor().getPassword().getPlainText());
-        Map<String,String> map = connector.getBranches();
-        map.putAll(connector.getTags());
+
+        Map<String, String> map = connector.getBranches(project, repo);
+        map.putAll(connector.getTags(project, repo));
+
         Map<String, Map<String, String>> stringMapMap = MapsUtils.groupMap(map);
         return stringMapMap;
     }
@@ -135,7 +103,7 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
         private Secret password;
 
         private String stashApiUrl;
-        private List<String> projects;
+        private String repo;
 
         public StashBranchParameterDescriptor() {
             super(StashBranchParameterDefinition.class);
@@ -153,6 +121,7 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
 
         public void setUsername(String username) {
             this.username = username;
+            save();
         }
 
         public Secret getPassword() {
@@ -161,6 +130,7 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
 
         public void setPassword(Secret password) {
             this.password = password;
+            save();
         }
 
         public String getStashApiUrl() {
@@ -169,14 +139,16 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
 
         public void setStashApiUrl(String stashApiUrl) {
             this.stashApiUrl = stashApiUrl;
+            save();
         }
 
-        public List<String> getProjects() {
-            return projects;
+        public String getRepo() {
+            return repo;
         }
 
-        public void setProjects(List<String> projects) {
-            this.projects = projects;
+        public void setRepo(String repo) {
+            this.repo = repo;
+            save();
         }
 
         @Override
@@ -209,7 +181,7 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
                 authCache.put(target, basicAuth);
                 HttpClientContext localContext = HttpClientContext.create();
                 localContext.setAuthCache(authCache);
-                HttpGet httpget = new HttpGet(url.getPath());
+                HttpGet httpget = new HttpGet(url.getPath().concat("/repos"));
 
                 CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
                 try {
@@ -235,11 +207,7 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
             return doCheckUsername(stashApiUrl, username, password);
         }
 
-        public FormValidation doCheckStashApiUrl(@QueryParameter final String stashApiUrl, @QueryParameter final String username, @QueryParameter final String password) throws IOException, ServletException {
-            return doCheckUsername(stashApiUrl, username, password);
-        }
-
-        public ListBoxModel doFillProjectItems() throws MalformedURLException {
+        public ListBoxModel doFillRepositoryItems() throws MalformedURLException {
             StashConnector connector = new StashConnector(getStashApiUrl(),getUsername(),getPassword().getPlainText());
             ListBoxModel items = new ListBoxModel();
             Map<String, List<String>> repositories = connector.getRepositories();
@@ -249,7 +217,7 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
                 for(String repo: entry.getValue()){
                     String name = project.concat(" / ").concat(repo);
                     String value = name.replace(" ","");
-                    items.add(name, value);
+                    items.add(new ListBoxModel.Option(name, value));
                 }
             }
             return items;

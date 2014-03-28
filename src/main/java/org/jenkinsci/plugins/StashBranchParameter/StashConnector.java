@@ -52,11 +52,8 @@ public class StashConnector {
 
     }
 
-    public Map<String,String> getBranches(){
-        String path = url.getPath();
-        if(!path.endsWith("branches")){
-            path = path.concat("/branches");
-        }
+    public Map<String, String> getBranches(String project, String repo) {
+        String path = getBranchesPath(project, repo);
         path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
 
         JSONObject json = getJson(path);
@@ -74,14 +71,9 @@ public class StashConnector {
         return map;
     }
 
-    public Map<String,String> getTags(){
-        String path = url.getPath();
-        if(path.endsWith("/branches")){
-            path = path.substring(0,path.indexOf("/branches"));
-        }
-        if(!path.endsWith("/tags")){
-            path = path.concat("/tags");
-        }
+
+    public Map<String, String> getTags(String project, String repo) {
+        String path = getTagsPath(project, repo);
         path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
 
         JSONObject json = getJson(path);
@@ -95,6 +87,44 @@ public class StashConnector {
                     String value = "tags/".concat(branch.getString("displayId"));
                     map.put(value,value);
                 }
+            }
+        }
+        return map;
+    }
+
+    public List<String> getProjects() {
+
+        String path = getProjectsPath();
+        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+        JSONObject json = getJson(path);
+
+        List<String> list = new LinkedList<String>();
+        if (json.has("values")) {
+            JSONArray values = json.getJSONArray("values");
+            Iterator<JSONObject> iterator = values.iterator();
+            while (iterator.hasNext()) {
+                JSONObject project = iterator.next();
+                if (project.has("key")) {
+                    list.add(project.getString("key"));
+                }
+            }
+        }
+        return list;
+    }
+
+    public Map<String, List<String>> getRepositories() {
+
+        String path = getRepositoriesPath();
+        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+        JSONObject json = getJson(path);
+        Map<String, List<String>> map = new TreeMap<String, List<String>>();
+        if (json.has("values")) {
+            JSONArray values = json.getJSONArray("values");
+            Iterator<JSONObject> iterator = values.iterator();
+            while (iterator.hasNext()) {
+                JSONObject repo = iterator.next();
+                JSONObject project = repo.getJSONObject("project");
+                addToMap(map, project.getString("key"), repo.getString("slug"));
             }
         }
         return map;
@@ -141,46 +171,8 @@ public class StashConnector {
         localContext.setAuthCache(authCache);
     }
 
-    public List<String> getProjects() {
 
-        String path = url.getPath().concat("/projects");
-        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
-        JSONObject json = getJson(path);
-
-        List<String> list = new LinkedList<String>();
-        if(json.has("values")){
-            JSONArray values = json.getJSONArray("values");
-            Iterator<JSONObject> iterator = values.iterator();
-            while(iterator.hasNext()){
-                JSONObject project = iterator.next();
-                if(project.has("key")){
-                    list.add(project.getString("key"));
-                }
-            }
-        }
-        return list;
-    }
-
-    public Map<String,List<String>> getRepositories() {
-
-        String path = getRepositoriesPath();
-        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
-        JSONObject json = getJson(path);
-
-        Map<String, List<String>> map = new TreeMap<String, List<String>>();
-        if(json.has("values")){
-            JSONArray values = json.getJSONArray("values");
-            Iterator<JSONObject> iterator = values.iterator();
-            while(iterator.hasNext()){
-                JSONObject repo = iterator.next();
-                JSONObject project = repo.getJSONObject("project");
-                addToMap(map,project.getString("key"),repo.getString("slug"));
-            }
-        }
-        return map;
-    }
-
-    public void addToMap(Map<String,List<String>> map, String key, String value){
+    private void addToMap(Map<String, List<String>> map, String key, String value) {
         if(!map.containsKey(key)){
             map.put(key, new LinkedList<String>());
         }
@@ -190,6 +182,21 @@ public class StashConnector {
 
     private String getRepositoriesPath(){
         return url.getPath().concat("/repos");
+    }
 
+    private String getProjectsPath() {
+        return url.getPath().concat("/projects");
+    }
+
+    private String getRepositoriesPath(String project) {
+        return getProjectsPath().concat("/").concat(project).concat("/repos");
+    }
+
+    private String getBranchesPath(String project, String repo) {
+        return getRepositoriesPath(project).concat("/").concat(repo).concat("/branches");
+    }
+
+    private String getTagsPath(String project, String repo) {
+        return getRepositoriesPath(project).concat("/").concat(repo).concat("/tags");
     }
 }
