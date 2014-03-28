@@ -10,7 +10,7 @@
                     <optgroup label="${group.key}">
                         <j:forEach var="value" items="${group.value}">
                             <j:choose>
-                                <j:when test="${value.value eq master}">
+                                <j:when test="${value.value.equals('master')}">
                                     <option value="${value.key}" selected="selected">${value.value}</option>
                                 </j:when>
                                 <j:otherwise>

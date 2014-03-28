@@ -16,5 +16,10 @@
     <f:entry title="${%Repository}" field="repository">
         <f:select/>
     </f:entry>
+    <f:advanced>
+        <f:entry title="Default value" field="defaultValue">
+            <f:textbox/>
+        </f:entry>
+    </f:advanced>
 
 </j:jelly>
