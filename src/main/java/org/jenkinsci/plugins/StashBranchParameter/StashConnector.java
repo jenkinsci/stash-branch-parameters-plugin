@@ -23,11 +23,15 @@ import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.util.logging.Logger;
 
 /**
  * Created by erwin on 24/03/14.
  */
 public class StashConnector {
+
+    private static final Logger LOGGER = Logger.getLogger(StashConnector.class.getName());
+
 
     private String stashApiUrl;
     private String username;
@@ -139,7 +143,7 @@ public class StashConnector {
 
     public List<String> getProjects() {
 
-        String path = url.getPath();
+        String path = url.getPath().concat("/projects");
         path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
         JSONObject json = getJson(path);
 
@@ -154,6 +158,6 @@ public class StashConnector {
                 }
             }
         }
-        return null;
+        return list;
     }
 }

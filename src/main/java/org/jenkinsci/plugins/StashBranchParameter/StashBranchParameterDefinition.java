@@ -1,10 +1,12 @@
 package org.jenkinsci.plugins.StashBranchParameter;
 
+import groovy.transform.Field;
 import hudson.Extension;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.StringParameterValue;
 import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.GlobalConfiguration;
 import net.sf.json.JSONArray;
@@ -54,15 +56,17 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
 
     private String project;
     private String repo;
-
+    protected List<String> projects;
 
     @DataBoundConstructor
-    public StashBranchParameterDefinition(String name, String description) {
+    public StashBranchParameterDefinition(String name, String description, String project, String repo) {
         super(name, description);
+        this.project = project;
+        this.repo = repo;
     }
 
     public String getProject() {
-        return project;
+        return "Poepject";
     }
 
     public void setProject(String project) {
@@ -77,7 +81,15 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
         this.repo = repo;
     }
 
-    public List<String> getAllProjects() throws MalformedURLException {
+    public List<String> getProjects() {
+        return projects;
+    }
+
+    public void setProjects(List<String> projects) {
+        this.projects = projects;
+    }
+
+    public  List<String> getAllProjects() throws MalformedURLException {
         System.out.println("jaja");
         LOGGER.warning("neenee");
         StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(),getDescriptor().getUsername(),getDescriptor().getPassword().getPlainText());
@@ -123,6 +135,7 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
         private Secret password;
 
         private String stashApiUrl;
+        private List<String> projects;
 
         public StashBranchParameterDescriptor() {
             super(StashBranchParameterDefinition.class);
@@ -156,6 +169,14 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
 
         public void setStashApiUrl(String stashApiUrl) {
             this.stashApiUrl = stashApiUrl;
+        }
+
+        public List<String> getProjects() {
+            return projects;
+        }
+
+        public void setProjects(List<String> projects) {
+            this.projects = projects;
         }
 
         @Override
@@ -216,6 +237,15 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
 
         public FormValidation doCheckStashApiUrl(@QueryParameter final String stashApiUrl, @QueryParameter final String username, @QueryParameter final String password) throws IOException, ServletException {
             return doCheckUsername(stashApiUrl, username, password);
+        }
+
+        public ListBoxModel doFillProjectItems() throws MalformedURLException {
+            StashConnector connector = new StashConnector(getStashApiUrl(),getUsername(),getPassword().getPlainText());
+            ListBoxModel items = new ListBoxModel();
+            for(String project: connector.getProjects()){
+                items.add(project,project);
+            }
+            return items;
         }
     }
 

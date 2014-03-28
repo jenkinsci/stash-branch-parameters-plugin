@@ -14,11 +14,8 @@
     <f:entry title="Description" field="description">
         <f:textbox />
     </f:entry>
-    <f:entry title="${%Project}">
-        <select name="project">
-            <j:forEach var="project" items="${it.allProjects}">
-                <option value="${project}">${project}</option>
-            </j:forEach>
-        </select>
+    <f:entry title="${%Project}" field="project">
+        <f:select />
     </f:entry>
+
 </j:jelly>
