@@ -160,4 +160,36 @@ public class StashConnector {
         }
         return list;
     }
+
+    public Map<String,List<String>> getRepositories() {
+
+        String path = getRepositoriesPath();
+        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+        JSONObject json = getJson(path);
+
+        Map<String, List<String>> map = new TreeMap<String, List<String>>();
+        if(json.has("values")){
+            JSONArray values = json.getJSONArray("values");
+            Iterator<JSONObject> iterator = values.iterator();
+            while(iterator.hasNext()){
+                JSONObject repo = iterator.next();
+                JSONObject project = repo.getJSONObject("project");
+                addToMap(map,project.getString("key"),repo.getString("slug"));
+            }
+        }
+        return map;
+    }
+
+    public void addToMap(Map<String,List<String>> map, String key, String value){
+        if(!map.containsKey(key)){
+            map.put(key, new LinkedList<String>());
+        }
+        map.get(key).add(value);
+    }
+
+
+    private String getRepositoriesPath(){
+        return url.getPath().concat("/repos");
+
+    }
 }

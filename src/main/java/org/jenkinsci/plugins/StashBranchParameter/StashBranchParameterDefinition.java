@@ -242,8 +242,15 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
         public ListBoxModel doFillProjectItems() throws MalformedURLException {
             StashConnector connector = new StashConnector(getStashApiUrl(),getUsername(),getPassword().getPlainText());
             ListBoxModel items = new ListBoxModel();
-            for(String project: connector.getProjects()){
-                items.add(project,project);
+            Map<String, List<String>> repositories = connector.getRepositories();
+
+            for(Map.Entry<String,List<String>> entry: repositories.entrySet()){
+                String project = entry.getKey();
+                for(String repo: entry.getValue()){
+                    String name = project.concat(" / ").concat(repo);
+                    String value = name.replace(" ","");
+                    items.add(name, value);
+                }
             }
             return items;
         }
