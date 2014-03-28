@@ -44,27 +44,33 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
     private static final Logger LOGGER = Logger.getLogger(StashBranchParameterDefinition.class.getName());
 
     private String repository;
+    private String defaultValue;
 
     @DataBoundConstructor
-    public StashBranchParameterDefinition(String name, String description, String repository) {
+    public StashBranchParameterDefinition(String name, String description, String repository, String defaultValue) {
         super(name, description);
         this.repository = repository;
+        this.defaultValue = defaultValue;
     }
 
     public String getRepository() {
-        LOGGER.info(repository);
-        LOGGER.info(getDescriptor().getRepo());
         return repository;
     }
 
     public void setRepository(String repository) {
         this.repository = repository;
-        getDescriptor().setRepo(repository);
+    }
+
+    public String getDefaultValue() {
+        return defaultValue;
+    }
+
+    public void setDefaultValue(String defaultValue) {
+        this.defaultValue = defaultValue;
     }
 
     @Override
     public ParameterValue createValue(StaplerRequest staplerRequest, JSONObject jsonObject) {
-        LOGGER.warning("Value "+ jsonObject.toString());
         String value = jsonObject.getString("value");
         return new StringParameterValue(this.getName(),value);
     }
@@ -72,7 +78,13 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
     @Override
     public ParameterValue createValue(StaplerRequest staplerRequest) {
         String[] parameterValues = staplerRequest.getParameterValues(getName());
-        return new StringParameterValue(this.getName(),parameterValues[0]);
+        String value = parameterValues[0];
+        return new StringParameterValue(this.getName(),value);
+    }
+
+    @Override
+    public ParameterValue getDefaultParameterValue() {
+        return new StringParameterValue(this.getName(),defaultValue);
     }
 
     public Map<String, Map<String, String>> getDefaultValueMap() throws IOException {
@@ -85,6 +97,9 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
         StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(),getDescriptor().getUsername(),getDescriptor().getPassword());
 
         Map<String, String> map = connector.getBranches(project, repo);
+        if(StringUtils.isNotBlank(defaultValue)){
+            map.put(defaultValue,defaultValue);
+        }
         map.putAll(connector.getTags(project, repo));
 
         Map<String, Map<String, String>> stringMapMap = MapsUtils.groupMap(map);
