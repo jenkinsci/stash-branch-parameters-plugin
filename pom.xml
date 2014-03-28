@@ -10,7 +10,7 @@
     </parent>
 
     <artifactId>StashBranchParameter</artifactId>
-    <version>0.1.4-SNAPSHOT</version>
+    <version>0.1.4</version>
     <name>Stash Branch Parameter Plug-In</name>
     <packaging>hpi</packaging>
 
