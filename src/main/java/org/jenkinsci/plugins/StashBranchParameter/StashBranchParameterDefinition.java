@@ -82,7 +82,7 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
     private Map<String, Map<String, String>> computeDefaultValueMap() throws IOException {
         String project = repository.split("/")[0];
         String repo = repository.split("/")[1];
-        StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(),getDescriptor().getUsername(),getDescriptor().getPassword().getPlainText());
+        StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(),getDescriptor().getUsername(),getDescriptor().getPassword());
 
         Map<String, String> map = connector.getBranches(project, repo);
         map.putAll(connector.getTags(project, repo));
@@ -124,13 +124,12 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
             save();
         }
 
-        public Secret getPassword() {
-            return password;
+        public String getPassword() {
+            return password.getPlainText();
         }
 
         public void setPassword(Secret password) {
             this.password = password;
-            save();
         }
 
         public String getStashApiUrl() {
@@ -139,7 +138,6 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
 
         public void setStashApiUrl(String stashApiUrl) {
             this.stashApiUrl = stashApiUrl;
-            save();
         }
 
         public String getRepo() {
@@ -148,7 +146,6 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
 
         public void setRepo(String repo) {
             this.repo = repo;
-            save();
         }
 
         @Override
@@ -208,7 +205,7 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
         }
 
         public ListBoxModel doFillRepositoryItems() throws MalformedURLException {
-            StashConnector connector = new StashConnector(getStashApiUrl(),getUsername(),getPassword().getPlainText());
+            StashConnector connector = new StashConnector(getStashApiUrl(),getUsername(),getPassword());
             ListBoxModel items = new ListBoxModel();
             Map<String, List<String>> repositories = connector.getRepositories();
 
