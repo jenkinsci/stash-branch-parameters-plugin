@@ -1,0 +1,4 @@
+<div>
+    The URL to the stash API.<br/>
+    Usually http://<SERVER_IP>:<SERVER_PORT>/rest/api/1.0
+</div>

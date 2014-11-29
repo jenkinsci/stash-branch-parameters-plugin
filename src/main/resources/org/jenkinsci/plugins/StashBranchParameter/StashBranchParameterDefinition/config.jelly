@@ -2,11 +2,8 @@
  Copyright (c) 2013 Costco, Vimil Saju
  See the file license.txt for copying permission.
 -->
-
-
 <j:jelly xmlns:j="jelly:core"
-         xmlns:f="/lib/form"
-        >
+         xmlns:f="/lib/form">
     <f:entry title="Name" field="name">
         <f:textbox/>
     </f:entry>
@@ -19,6 +16,9 @@
     <f:advanced>
         <f:entry title="Default value" field="defaultValue">
             <f:textbox/>
+        </f:entry>
+        <f:entry title="Branch Filter" field="branchFilters">
+        	<f:textbox/>
         </f:entry>
     </f:advanced>
 
