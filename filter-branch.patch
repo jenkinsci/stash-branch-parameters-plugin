@@ -1,0 +1,1087 @@
+From 5f1c78241b8c1c44264ee64c2669f7048ec40263 Mon Sep 17 00:00:00 2001
+From: GUILLAUME LE FLOCH <glfoch@gmail.com>
+Date: Mon, 24 Nov 2014 10:16:55 +0100
+Subject: [PATCH 1/2] adding branch filter field
+
+---
+ .../StashBranchParameterDefinition/config.jelly                   | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/config.jelly b/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/config.jelly
+index 0431f96..667e513 100644
+--- a/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/config.jelly
++++ b/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/config.jelly
+@@ -2,11 +2,8 @@
+  Copyright (c) 2013 Costco, Vimil Saju
+  See the file license.txt for copying permission.
+ -->
+-
+-
+ <j:jelly xmlns:j="jelly:core"
+-         xmlns:f="/lib/form"
+-        >
++         xmlns:f="/lib/form">
+     <f:entry title="Name" field="name">
+         <f:textbox/>
+     </f:entry>
+@@ -20,6 +17,9 @@
+         <f:entry title="Default value" field="defaultValue">
+             <f:textbox/>
+         </f:entry>
++        <f:entry title="Branch Filter" field="branchFilter">
++        	<f:textbox/>
++        </f:entry>
+     </f:advanced>
+ 
+ </j:jelly>
+-- 
+1.9.4.msysgit.2
+
+
+From 71d6b9f3bfa14301a21ea7a86950aaf93c6af1c0 Mon Sep 17 00:00:00 2001
+From: GUILLAUME LE FLOCH <glfoch@gmail.com>
+Date: Mon, 24 Nov 2014 10:17:07 +0100
+Subject: [PATCH 2/2] Adding filter
+
+---
+ .../StashBranchParameterDefinition.java            | 232 ++++++------
+ .../StashBranchParameterDescriptor.java            | 294 ++++++++-------
+ .../StashBranchParameter/StashConnector.java       | 402 ++++++++++++---------
+ .../StashBranchParameterDefinition/config.jelly    |   2 +-
+ .../help-branchFilters.jelly                       |   5 +
+ .../help-stashApiUrl.jelly                         |   4 +
+ 6 files changed, 528 insertions(+), 411 deletions(-)
+ create mode 100644 src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/help-branchFilters.jelly
+ create mode 100644 src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/help-stashApiUrl.jelly
+
+diff --git a/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition.java b/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition.java
+index 199e7b5..e46e6df 100644
+--- a/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition.java
++++ b/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition.java
+@@ -1,120 +1,148 @@
+ package org.jenkinsci.plugins.StashBranchParameter;
+ 
+ import hudson.Extension;
+-import hudson.model.ParameterDefinition;
+ import hudson.model.ParameterValue;
++import hudson.model.ParameterDefinition;
+ import hudson.model.StringParameterValue;
+-import hudson.util.FormValidation;
+-import hudson.util.ListBoxModel;
+-import hudson.util.Secret;
+-import net.sf.json.JSONObject;
+-import org.apache.commons.lang.StringUtils;
+-import org.apache.http.HttpHost;
+-import org.apache.http.auth.AuthScope;
+-import org.apache.http.auth.UsernamePasswordCredentials;
+-import org.apache.http.client.AuthCache;
+-import org.apache.http.client.CredentialsProvider;
+-import org.apache.http.client.methods.CloseableHttpResponse;
+-import org.apache.http.client.methods.HttpGet;
+-import org.apache.http.client.protocol.HttpClientContext;
+-import org.apache.http.conn.HttpHostConnectException;
+-import org.apache.http.impl.auth.BasicScheme;
+-import org.apache.http.impl.client.BasicAuthCache;
+-import org.apache.http.impl.client.BasicCredentialsProvider;
+-import org.apache.http.impl.client.CloseableHttpClient;
+-import org.apache.http.impl.client.HttpClients;
+-import org.kohsuke.stapler.DataBoundConstructor;
+-import org.kohsuke.stapler.QueryParameter;
+-import org.kohsuke.stapler.StaplerRequest;
+ 
+-import javax.servlet.ServletException;
+ import java.io.IOException;
+-import java.net.MalformedURLException;
+-import java.net.URL;
+-import java.net.UnknownHostException;
++import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.logging.Logger;
+ 
++import net.sf.json.JSONObject;
++
++import org.apache.commons.lang.StringUtils;
++import org.kohsuke.stapler.DataBoundConstructor;
++import org.kohsuke.stapler.StaplerRequest;
++
+ /**
+  * Created by erwin on 13/03/14.
+  */
+ public class StashBranchParameterDefinition extends ParameterDefinition {
+ 
+-    private static final Logger LOGGER = Logger.getLogger(StashBranchParameterDefinition.class.getName());
+-
+-    private String repository;
+-    private String defaultValue;
+-
+-    @DataBoundConstructor
+-    public StashBranchParameterDefinition(String name, String description, String repository, String defaultValue) {
+-        super(name, description);
+-        this.repository = repository;
+-        this.defaultValue = defaultValue;
+-    }
+-
+-    public String getRepository() {
+-        return repository;
+-    }
+-
+-    public void setRepository(String repository) {
+-        this.repository = repository;
+-    }
+-
+-    public String getDefaultValue() {
+-        return defaultValue;
+-    }
+-
+-    public void setDefaultValue(String defaultValue) {
+-        this.defaultValue = defaultValue;
+-    }
+-
+-    @Override
+-    public ParameterValue createValue(StaplerRequest staplerRequest, JSONObject jsonObject) {
+-        String value = jsonObject.getString("value");
+-        return new StringParameterValue(this.getName(),value);
+-    }
+-
+-    @Override
+-    public ParameterValue createValue(StaplerRequest staplerRequest) {
+-        String[] parameterValues = staplerRequest.getParameterValues(getName());
+-        String value = parameterValues[0];
+-        return new StringParameterValue(this.getName(),value);
+-    }
+-
+-    @Override
+-    public ParameterValue getDefaultParameterValue() {
+-        return new StringParameterValue(this.getName(),defaultValue);
+-    }
+-
+-    public Map<String, Map<String, String>> getDefaultValueMap() throws IOException {
+-        return computeDefaultValueMap();
+-    }
+-
+-    private Map<String, Map<String, String>> computeDefaultValueMap() throws IOException {
+-        String project = repository.split("/")[0];
+-        String repo = repository.split("/")[1];
+-        StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(),getDescriptor().getUsername(),getDescriptor().getPassword());
+-
+-        Map<String, String> map = connector.getBranches(project, repo);
+-        if(StringUtils.isNotBlank(defaultValue)){
+-            map.put(defaultValue,defaultValue);
+-        }
+-        map.putAll(connector.getTags(project, repo));
+-
+-        Map<String, Map<String, String>> stringMapMap = MapsUtils.groupMap(map);
+-        return stringMapMap;
+-    }
+-
+-    @Override
+-    public StashBranchParameterDescriptorImpl getDescriptor() {
+-        return (StashBranchParameterDescriptorImpl) super.getDescriptor();
+-    }
+-
+-    @Extension
+-    public static class StashBranchParameterDescriptorImpl extends StashBranchParameterDescriptor{
+-
+-    }
+-
++	private static final Logger LOGGER = Logger
++			.getLogger(StashBranchParameterDefinition.class.getName());
++
++	private String repository;
++	private String defaultValue;
++	private final List<String> branchFilters;
++
++	/*
++	 *
++	 */
++	@DataBoundConstructor
++	public StashBranchParameterDefinition(final String name,
++			final String description, final String repository,
++			final String defaultValue, final String branchFilters) {
++		super(name, description);
++		this.repository = repository;
++		this.defaultValue = defaultValue;
++		this.branchFilters = new ArrayList<String>();
++		// Strip whitespace
++		for (final String filter : branchFilters.split(",")) {
++			this.branchFilters.add(filter.trim());
++		}
++
++	}
++
++	public String getRepository() {
++		return repository;
++	}
++
++	public void setRepository(final String repository) {
++		this.repository = repository;
++	}
++
++	public String getDefaultValue() {
++		return defaultValue;
++	}
++
++	public void setDefaultValue(final String defaultValue) {
++		this.defaultValue = defaultValue;
++	}
++
++	/*
++	 * (non-Javadoc)
++	 * 
++	 * @see hudson.model.ParameterDefinition#createValue(org.kohsuke.stapler.
++	 * StaplerRequest, net.sf.json.JSONObject)
++	 */
++	@Override
++	public ParameterValue createValue(final StaplerRequest staplerRequest,
++			final JSONObject jsonObject) {
++		final String value = jsonObject.getString("value");
++		return new StringParameterValue(this.getName(), value);
++	}
++
++	/*
++	 * (non-Javadoc)
++	 * 
++	 * @see hudson.model.ParameterDefinition#createValue(org.kohsuke.stapler.
++	 * StaplerRequest)
++	 */
++	@Override
++	public ParameterValue createValue(final StaplerRequest staplerRequest) {
++		final String[] parameterValues = staplerRequest
++				.getParameterValues(getName());
++		final String value = parameterValues[0];
++		return new StringParameterValue(this.getName(), value);
++	}
++
++	/*
++	 * (non-Javadoc)
++	 * 
++	 * @see hudson.model.ParameterDefinition#getDefaultParameterValue()
++	 */
++	@Override
++	public ParameterValue getDefaultParameterValue() {
++		return new StringParameterValue(this.getName(), defaultValue);
++	}
++
++	public Map<String, Map<String, String>> getDefaultValueMap()
++			throws IOException {
++		return computeDefaultValueMap();
++	}
++
++	private Map<String, Map<String, String>> computeDefaultValueMap()
++			throws IOException {
++		final String project = repository.split("/")[0];
++		final String repo = repository.split("/")[1];
++		final StashConnector connector = new StashConnector(getDescriptor()
++				.getStashApiUrl(), getDescriptor().getUsername(),
++				getDescriptor().getPassword());
++
++		final Map<String, String> map;
++		if (branchFilters.isEmpty()) {
++			map = connector.getBranches(project, repo);
++		} else {
++			map = connector.getFilteredBranches(project, repo, branchFilters);
++		}
++		if (StringUtils.isNotBlank(defaultValue)) {
++			map.put(defaultValue, defaultValue);
++		}
++		map.putAll(connector.getTags(project, repo));
++
++		final Map<String, Map<String, String>> stringMapMap = MapsUtils
++				.groupMap(map);
++		return stringMapMap;
++	}
++
++	/*
++	 * (non-Javadoc)
++	 * 
++	 * @see hudson.model.ParameterDefinition#getDescriptor()
++	 */
++	@Override
++	public StashBranchParameterDescriptorImpl getDescriptor() {
++		return (StashBranchParameterDescriptorImpl) super.getDescriptor();
++	}
++
++	@Extension
++	public static class StashBranchParameterDescriptorImpl extends
++			StashBranchParameterDescriptor {
++
++	}
+ 
+ }
+diff --git a/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDescriptor.java b/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDescriptor.java
+index 0c9db8a..8707695 100644
+--- a/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDescriptor.java
++++ b/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDescriptor.java
+@@ -2,9 +2,20 @@ package org.jenkinsci.plugins.StashBranchParameter;
+ 
+ import hudson.model.ParameterDefinition;
+ import hudson.util.FormValidation;
+-import hudson.util.ListBoxModel;
+ import hudson.util.Secret;
++import hudson.util.ListBoxModel;
++
++import java.io.IOException;
++import java.net.MalformedURLException;
++import java.net.URL;
++import java.net.UnknownHostException;
++import java.util.List;
++import java.util.Map;
++
++import javax.servlet.ServletException;
++
+ import net.sf.json.JSONObject;
++
+ import org.apache.commons.lang.StringUtils;
+ import org.apache.http.HttpHost;
+ import org.apache.http.auth.AuthScope;
+@@ -23,134 +34,153 @@ import org.apache.http.impl.client.HttpClients;
+ import org.kohsuke.stapler.QueryParameter;
+ import org.kohsuke.stapler.StaplerRequest;
+ 
+-import javax.servlet.ServletException;
+-import java.io.IOException;
+-import java.net.MalformedURLException;
+-import java.net.URL;
+-import java.net.UnknownHostException;
+-import java.util.List;
+-import java.util.Map;
+-
+-public class StashBranchParameterDescriptor extends ParameterDefinition.ParameterDescriptor {
+-        private String username;
+-
+-        private Secret password;
+-
+-        private String stashApiUrl;
+-        private String repo;
+-
+-        public StashBranchParameterDescriptor() {
+-            super(StashBranchParameterDefinition.class);
+-            load();
+-        }
+-
+-        @Override
+-        public String getDisplayName() {
+-            return "Stash Branch Parameter";
+-        }
+-
+-        public String getUsername() {
+-            return username;
+-        }
+-
+-        public void setUsername(String username) {
+-            this.username = username;
+-            save();
+-        }
+-
+-        public String getPassword() {
+-            return password==null?null:password.getPlainText();
+-        }
+-
+-        public void setPassword(Secret password) {
+-            this.password = password;
+-        }
+-
+-        public String getStashApiUrl() {
+-            return stashApiUrl;
+-        }
+-
+-        public void setStashApiUrl(String stashApiUrl) {
+-            this.stashApiUrl = stashApiUrl;
+-        }
+-
+-        public String getRepo() {
+-            return repo;
+-        }
+-
+-        public void setRepo(String repo) {
+-            this.repo = repo;
+-        }
+-
+-        @Override
+-        public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
+-            stashApiUrl =      formData.getString("stashApiUrl");
+-            username = formData.getString("username");
+-            password = Secret.fromString(formData.getString("password"));
+-
+-            save();
+-            return super.configure(req,formData);
+-        }
+-
+-        public FormValidation doCheckUsername(@QueryParameter final String stashApiUrl, @QueryParameter final String username, @QueryParameter final String password) throws IOException, ServletException {
+-            if(StringUtils.isBlank(stashApiUrl)) {
+-                return FormValidation.ok();
+-            }
+-            URL url = new URL(stashApiUrl);
+-
+-            HttpHost target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
+-            CredentialsProvider credsProvider = new BasicCredentialsProvider();
+-            credsProvider.setCredentials(
+-                    new AuthScope(target.getHostName(), target.getPort()),
+-                    new UsernamePasswordCredentials(username, password));
+-            CloseableHttpClient httpclient = HttpClients.custom()
+-                    .setDefaultCredentialsProvider(credsProvider).build();
+-
+-            try {
+-                AuthCache authCache = new BasicAuthCache();
+-                BasicScheme basicAuth = new BasicScheme();
+-                authCache.put(target, basicAuth);
+-                HttpClientContext localContext = HttpClientContext.create();
+-                localContext.setAuthCache(authCache);
+-                HttpGet httpget = new HttpGet(url.getPath().concat("/repos"));
+-
+-                CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
+-                try {
+-                    if(response.getStatusLine().getStatusCode()!=200){
+-                        return FormValidation.error("Authorization failed");
+-                    }
+-                    return FormValidation.ok();
+-
+-                } finally {
+-                    response.close();
+-                }
+-            }
+-            catch(UnknownHostException e){
+-                return FormValidation.error("Couldn't connect with server");
+-            }catch(HttpHostConnectException e){
+-                return FormValidation.error("Couldn't connect with server");
+-            }finally {
+-                httpclient.close();
+-            }
+-        }
+-
+-        public FormValidation doCheckPassword(@QueryParameter final String stashApiUrl, @QueryParameter final String username, @QueryParameter final String password) throws IOException, ServletException {
+-            return doCheckUsername(stashApiUrl, username, password);
+-        }
+-
+-        public ListBoxModel doFillRepositoryItems() throws MalformedURLException {
+-            StashConnector connector = new StashConnector(getStashApiUrl(),getUsername(),getPassword());
+-            ListBoxModel items = new ListBoxModel();
+-            Map<String, List<String>> repositories = connector.getRepositories();
+-
+-            for(Map.Entry<String,List<String>> entry: repositories.entrySet()){
+-                String project = entry.getKey();
+-                for(String repo: entry.getValue()){
+-                    String name = project.concat(" / ").concat(repo);
+-                    String value = name.replace(" ","");
+-                    items.add(new ListBoxModel.Option(name, value));
+-                }
+-            }
+-            return items;
+-        }
+-    }
+\ No newline at end of file
++public class StashBranchParameterDescriptor extends
++ParameterDefinition.ParameterDescriptor {
++	private String username;
++
++	private Secret password;
++
++	private String stashApiUrl;
++	private String repo;
++
++	public StashBranchParameterDescriptor() {
++		super(StashBranchParameterDefinition.class);
++		load();
++	}
++
++	/*
++	 * (non-Javadoc)
++	 *
++	 * @see
++	 * hudson.model.ParameterDefinition.ParameterDescriptor#getDisplayName()
++	 */
++	@Override
++	public String getDisplayName() {
++		return "Stash Branch Parameter";
++	}
++
++	public String getUsername() {
++		return username;
++	}
++
++	public void setUsername(final String username) {
++		this.username = username;
++		save();
++	}
++
++	public String getPassword() {
++		return password == null ? null : password.getPlainText();
++	}
++
++	public void setPassword(final Secret password) {
++		this.password = password;
++	}
++
++	public String getStashApiUrl() {
++		return stashApiUrl;
++	}
++
++	public void setStashApiUrl(final String stashApiUrl) {
++		this.stashApiUrl = stashApiUrl;
++	}
++
++	public String getRepo() {
++		return repo;
++	}
++
++	public void setRepo(final String repo) {
++		this.repo = repo;
++	}
++
++	/*
++	 * (non-Javadoc)
++	 *
++	 * @see
++	 * hudson.model.Descriptor#configure(org.kohsuke.stapler.StaplerRequest,
++	 * net.sf.json.JSONObject)
++	 */
++	@Override
++	public boolean configure(final StaplerRequest req, final JSONObject formData)
++			throws FormException {
++		stashApiUrl = formData.getString("stashApiUrl");
++		username = formData.getString("username");
++		password = Secret.fromString(formData.getString("password"));
++		save();
++		return super.configure(req, formData);
++	}
++
++	public FormValidation doCheckUsername(
++			@QueryParameter final String stashApiUrl,
++			@QueryParameter final String username,
++			@QueryParameter final String password) throws IOException,
++			ServletException {
++		if (StringUtils.isBlank(stashApiUrl)) {
++			return FormValidation.ok();
++		}
++
++		final URL url = new URL(stashApiUrl);
++
++		final HttpHost target = new HttpHost(url.getHost(), url.getPort(),
++				url.getProtocol());
++		final CredentialsProvider credsProvider = new BasicCredentialsProvider();
++		credsProvider.setCredentials(
++				new AuthScope(target.getHostName(), target.getPort()),
++				new UsernamePasswordCredentials(username, password));
++		final CloseableHttpClient httpclient = HttpClients.custom()
++				.setDefaultCredentialsProvider(credsProvider).build();
++
++		try {
++			final AuthCache authCache = new BasicAuthCache();
++			final BasicScheme basicAuth = new BasicScheme();
++			authCache.put(target, basicAuth);
++			final HttpClientContext localContext = HttpClientContext.create();
++			localContext.setAuthCache(authCache);
++			final HttpGet httpget = new HttpGet(url.getPath().concat("/repos"));
++
++			final CloseableHttpResponse response = httpclient.execute(target,
++					httpget, localContext);
++			try {
++				if (response.getStatusLine().getStatusCode() != 200) {
++					return FormValidation.error("Authorization failed");
++				}
++				return FormValidation.ok();
++
++			} finally {
++				response.close();
++			}
++		} catch (final UnknownHostException e) {
++			return FormValidation.error("Couldn't connect with server");
++		} catch (final HttpHostConnectException e) {
++			return FormValidation.error("Couldn't connect with server");
++		} finally {
++			httpclient.close();
++		}
++	}
++
++	public FormValidation doCheckPassword(
++			@QueryParameter final String stashApiUrl,
++			@QueryParameter final String username,
++			@QueryParameter final String password) throws IOException,
++			ServletException {
++		return doCheckUsername(stashApiUrl, username, password);
++	}
++
++	public ListBoxModel doFillRepositoryItems() throws MalformedURLException {
++		final StashConnector connector = new StashConnector(getStashApiUrl(),
++				getUsername(), getPassword());
++		final ListBoxModel items = new ListBoxModel();
++		final Map<String, List<String>> repositories = connector
++				.getRepositories();
++
++		for (final Map.Entry<String, List<String>> entry : repositories
++				.entrySet()) {
++			final String project = entry.getKey();
++			for (final String repo : entry.getValue()) {
++				final String name = project.concat(" / ").concat(repo);
++				final String value = name.replace(" ", "");
++				items.add(new ListBoxModel.Option(name, value));
++			}
++		}
++		return items;
++	}
++}
+\ No newline at end of file
+diff --git a/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashConnector.java b/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashConnector.java
+index 0a8a3c8..6493e62 100644
+--- a/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashConnector.java
++++ b/src/main/java/org/jenkinsci/plugins/StashBranchParameter/StashConnector.java
+@@ -1,7 +1,19 @@
+ package org.jenkinsci.plugins.StashBranchParameter;
+ 
++import java.io.IOException;
++import java.io.StringWriter;
++import java.net.MalformedURLException;
++import java.net.URL;
++import java.util.Iterator;
++import java.util.LinkedList;
++import java.util.List;
++import java.util.Map;
++import java.util.TreeMap;
++import java.util.logging.Logger;
++
+ import net.sf.json.JSONArray;
+ import net.sf.json.JSONObject;
++
+ import org.apache.commons.io.IOUtils;
+ import org.apache.http.HttpEntity;
+ import org.apache.http.HttpHost;
+@@ -18,185 +30,223 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
+ import org.apache.http.impl.client.CloseableHttpClient;
+ import org.apache.http.impl.client.HttpClients;
+ 
+-import java.io.IOException;
+-import java.io.StringWriter;
+-import java.net.MalformedURLException;
+-import java.net.URL;
+-import java.util.*;
+-import java.util.logging.Logger;
+-
+ /**
+  * Created by erwin on 24/03/14.
+  */
+ public class StashConnector {
+ 
+-    private static final Logger LOGGER = Logger.getLogger(StashConnector.class.getName());
+-
+-
+-    private String stashApiUrl;
+-    private String username;
+-    private String password;
+-    private URL url;
+-    private CloseableHttpClient httpclient =null;
+-    private HttpHost target = null;
+-    private HttpClientContext localContext;
+-
+-    public StashConnector(String stashApiUrl, String username, String password) throws MalformedURLException {
+-        this.stashApiUrl = stashApiUrl;
+-        this.username = username;
+-        this.password = password;
+-        url = new URL(stashApiUrl);
+-        target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
+-
+-
+-
+-    }
+-
+-    public Map<String, String> getBranches(String project, String repo) {
+-        String path = getBranchesPath(project, repo);
+-        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+-
+-        JSONObject json = getJson(path);
+-        Map<String,String> map = new TreeMap<String, String>();
+-        if(json.has("values")){
+-            JSONArray values = json.getJSONArray("values");
+-            Iterator<JSONObject> iterator = values.iterator();
+-            while(iterator.hasNext()){
+-                JSONObject branch = iterator.next();
+-                if(branch.has("displayId")){
+-                    map.put(branch.getString("displayId"), branch.getString("displayId"));
+-                }
+-            }
+-        }
+-        return map;
+-    }
+-
+-
+-    public Map<String, String> getTags(String project, String repo) {
+-        String path = getTagsPath(project, repo);
+-        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+-
+-        JSONObject json = getJson(path);
+-        Map<String,String> map = new TreeMap<String, String>();
+-        if(json.has("values")){
+-            JSONArray values = json.getJSONArray("values");
+-            Iterator<JSONObject> iterator = values.iterator();
+-            while(iterator.hasNext()){
+-                JSONObject branch = iterator.next();
+-                if(branch.has("displayId")){
+-                    String value = "tags/".concat(branch.getString("displayId"));
+-                    map.put(value,value);
+-                }
+-            }
+-        }
+-        return map;
+-    }
+-
+-    public List<String> getProjects() {
+-
+-        String path = getProjectsPath();
+-        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+-        JSONObject json = getJson(path);
+-
+-        List<String> list = new LinkedList<String>();
+-        if (json.has("values")) {
+-            JSONArray values = json.getJSONArray("values");
+-            Iterator<JSONObject> iterator = values.iterator();
+-            while (iterator.hasNext()) {
+-                JSONObject project = iterator.next();
+-                if (project.has("key")) {
+-                    list.add(project.getString("key"));
+-                }
+-            }
+-        }
+-        return list;
+-    }
+-
+-    public Map<String, List<String>> getRepositories() {
+-
+-        String path = getRepositoriesPath();
+-        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+-        JSONObject json = getJson(path);
+-        Map<String, List<String>> map = new TreeMap<String, List<String>>();
+-        if (json.has("values")) {
+-            JSONArray values = json.getJSONArray("values");
+-            Iterator<JSONObject> iterator = values.iterator();
+-            while (iterator.hasNext()) {
+-                JSONObject repo = iterator.next();
+-                JSONObject project = repo.getJSONObject("project");
+-                addToMap(map, project.getString("key"), repo.getString("slug"));
+-            }
+-        }
+-        return map;
+-    }
+-
+-    private synchronized JSONObject getJson(String path){
+-        try {
+-            initConnections();
+-            HttpGet httpget = new HttpGet(path);
+-
+-            CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
+-            try{
+-                HttpEntity entity = response.getEntity();
+-                StringWriter writer = new StringWriter();
+-                IOUtils.copy(entity.getContent(), writer);
+-
+-                return JSONObject.fromObject(writer.toString());
+-            }finally {
+-                response.close();
+-            }
+-
+-        } catch (IOException e) {
+-            throw new RuntimeException();
+-        }finally {
+-            if(httpclient!=null)
+-                try {
+-                    httpclient.close();
+-                } catch (IOException e) {
+-                    throw new RuntimeException();
+-                }
+-        }
+-    }
+-
+-    private void initConnections() {
+-        CredentialsProvider credsProvider = new BasicCredentialsProvider();
+-        credsProvider.setCredentials(
+-                new AuthScope(target.getHostName(), target.getPort()),
+-                new UsernamePasswordCredentials(username, password));
+-        httpclient = HttpClients.custom().setDefaultCredentialsProvider(credsProvider).build();
+-        AuthCache authCache = new BasicAuthCache();
+-        BasicScheme basicAuth = new BasicScheme();
+-        authCache.put(target, basicAuth);
+-        localContext = HttpClientContext.create();
+-        localContext.setAuthCache(authCache);
+-    }
+-
+-
+-    private void addToMap(Map<String, List<String>> map, String key, String value) {
+-        if(!map.containsKey(key)){
+-            map.put(key, new LinkedList<String>());
+-        }
+-        map.get(key).add(value);
+-    }
+-
+-
+-    private String getRepositoriesPath(){
+-        return url.getPath().concat("/repos");
+-    }
+-
+-    private String getProjectsPath() {
+-        return url.getPath().concat("/projects");
+-    }
+-
+-    private String getRepositoriesPath(String project) {
+-        return getProjectsPath().concat("/").concat(project).concat("/repos");
+-    }
+-
+-    private String getBranchesPath(String project, String repo) {
+-        return getRepositoriesPath(project).concat("/").concat(repo).concat("/branches");
+-    }
+-
+-    private String getTagsPath(String project, String repo) {
+-        return getRepositoriesPath(project).concat("/").concat(repo).concat("/tags");
+-    }
++	private static final Logger LOGGER = Logger.getLogger(StashConnector.class
++			.getName());
++
++	private final String stashApiUrl;
++	private final String username;
++	private final String password;
++	private final URL url;
++	private CloseableHttpClient httpclient = null;
++	private HttpHost target = null;
++	private HttpClientContext localContext;
++
++	public StashConnector(final String stashApiUrl, final String username,
++			final String password) throws MalformedURLException {
++
++		this.stashApiUrl = stashApiUrl;
++		this.username = username;
++		this.password = password;
++		url = new URL(stashApiUrl);
++		target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
++	}
++
++	public Map<String, String> getBranches(final String project,
++			final String repo) {
++
++		String path = getBranchesPath(project, repo);
++		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
++
++		final JSONObject json = getJson(path);
++		final Map<String, String> map = new TreeMap<String, String>();
++		if (json.has("values")) {
++			final JSONArray values = json.getJSONArray("values");
++			final Iterator<JSONObject> iterator = values.iterator();
++			while (iterator.hasNext()) {
++				final JSONObject branch = iterator.next();
++				if (branch.has("displayId")) {
++					map.put(branch.getString("displayId"),
++							branch.getString("displayId"));
++				}
++			}
++		}
++		return map;
++	}
++
++	/**
++	 *
++	 * @param project
++	 *            Name of the project
++	 * @param repo
++	 *            Name of the repo
++	 * @param branchFilters
++	 *            List of text filter. Each filter will be applied separatly
++	 * @return Map of branch matching with a filter
++	 */
++	public Map<String, String> getFilteredBranches(final String project,
++			final String repo, final List<String> branchFilters) {
++
++		final Map<String, String> map = new TreeMap<String, String>();
++		for (final String filter : branchFilters) {
++			final String path = getFilterBranchPath(project, repo, filter);
++			path.concat("&orderBy=ALPHABETICAL&limit=1000");
++			final JSONObject json = getJson(path);
++			if (json.has("values")) {
++				final JSONArray values = json.getJSONArray("values");
++				final Iterator<JSONObject> iterator = values.iterator();
++				while (iterator.hasNext()) {
++					final JSONObject branch = iterator.next();
++					if (branch.has("displayId")) {
++						map.put(branch.getString("displayId"),
++								branch.getString("displayId"));
++					}
++				}
++			}
++		}
++		return map;
++	}
++
++	public Map<String, String> getTags(final String project, final String repo) {
++
++		String path = getTagsPath(project, repo);
++		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
++
++		final JSONObject json = getJson(path);
++		final Map<String, String> map = new TreeMap<String, String>();
++		if (json.has("values")) {
++			final JSONArray values = json.getJSONArray("values");
++			final Iterator<JSONObject> iterator = values.iterator();
++			while (iterator.hasNext()) {
++				final JSONObject branch = iterator.next();
++				if (branch.has("displayId")) {
++					final String value = "tags/".concat(branch
++							.getString("displayId"));
++					map.put(value, value);
++				}
++			}
++		}
++		return map;
++	}
++
++	public List<String> getProjects() {
++		String path = getProjectsPath();
++		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
++		final JSONObject json = getJson(path);
++
++		final List<String> list = new LinkedList<String>();
++		if (json.has("values")) {
++			final JSONArray values = json.getJSONArray("values");
++			final Iterator<JSONObject> iterator = values.iterator();
++			while (iterator.hasNext()) {
++				final JSONObject project = iterator.next();
++				if (project.has("key")) {
++					list.add(project.getString("key"));
++				}
++			}
++		}
++		return list;
++	}
++
++	public Map<String, List<String>> getRepositories() {
++		String path = getRepositoriesPath();
++		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
++		final JSONObject json = getJson(path);
++		final Map<String, List<String>> map = new TreeMap<String, List<String>>();
++		if (json.has("values")) {
++			final JSONArray values = json.getJSONArray("values");
++			final Iterator<JSONObject> iterator = values.iterator();
++			while (iterator.hasNext()) {
++				final JSONObject repo = iterator.next();
++				final JSONObject project = repo.getJSONObject("project");
++				addToMap(map, project.getString("key"), repo.getString("slug"));
++			}
++		}
++		return map;
++	}
++
++	private synchronized JSONObject getJson(final String path) {
++		try {
++			initConnections();
++			final HttpGet httpget = new HttpGet(path);
++
++			final CloseableHttpResponse response = httpclient.execute(target,
++					httpget, localContext);
++			try {
++				final HttpEntity entity = response.getEntity();
++				final StringWriter writer = new StringWriter();
++				IOUtils.copy(entity.getContent(), writer);
++
++				return JSONObject.fromObject(writer.toString());
++			} finally {
++				response.close();
++			}
++
++		} catch (final IOException e) {
++			throw new RuntimeException("Error while communicating with Stash",
++					e);
++		} finally {
++			if (httpclient != null) {
++				try {
++					httpclient.close();
++				} catch (final IOException e) {
++					throw new RuntimeException(e);
++				}
++			}
++		}
++	}
++
++	private void initConnections() {
++		final CredentialsProvider credsProvider = new BasicCredentialsProvider();
++		credsProvider.setCredentials(
++				new AuthScope(target.getHostName(), target.getPort()),
++				new UsernamePasswordCredentials(username, password));
++		httpclient = HttpClients.custom()
++				.setDefaultCredentialsProvider(credsProvider).build();
++		final AuthCache authCache = new BasicAuthCache();
++		final BasicScheme basicAuth = new BasicScheme();
++		authCache.put(target, basicAuth);
++		localContext = HttpClientContext.create();
++		localContext.setAuthCache(authCache);
++	}
++
++	private void addToMap(final Map<String, List<String>> map,
++			final String key, final String value) {
++		if (!map.containsKey(key)) {
++			map.put(key, new LinkedList<String>());
++		}
++		map.get(key).add(value);
++	}
++
++	private String getRepositoriesPath() {
++		return url.getPath().concat("/repos");
++	}
++
++	private String getProjectsPath() {
++		return url.getPath().concat("/projects");
++	}
++
++	private String getRepositoriesPath(final String project) {
++		return getProjectsPath().concat("/").concat(project).concat("/repos");
++	}
++
++	private String getBranchesPath(final String project, final String repo) {
++		return getRepositoriesPath(project).concat("/").concat(repo)
++				.concat("/branches");
++	}
++
++	private String getFilterBranchPath(final String project, final String repo,
++			final String filter) {
++		return getRepositoriesPath(project).concat("/").concat(repo)
++				.concat("/branches").concat("?filterText=").concat(filter);
++	}
++
++	private String getTagsPath(final String project, final String repo) {
++		return getRepositoriesPath(project).concat("/").concat(repo)
++				.concat("/tags");
++	}
+ }
+diff --git a/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/config.jelly b/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/config.jelly
+index 667e513..f4f0c52 100644
+--- a/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/config.jelly
++++ b/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/config.jelly
+@@ -17,7 +17,7 @@
+         <f:entry title="Default value" field="defaultValue">
+             <f:textbox/>
+         </f:entry>
+-        <f:entry title="Branch Filter" field="branchFilter">
++        <f:entry title="Branch Filter" field="branchFilters">
+         	<f:textbox/>
+         </f:entry>
+     </f:advanced>
+diff --git a/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/help-branchFilters.jelly b/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/help-branchFilters.jelly
+new file mode 100644
+index 0000000..857edfc
+--- /dev/null
++++ b/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/help-branchFilters.jelly
+@@ -0,0 +1,5 @@
++<div>
++	Comma separated list of branch filter.<br/>
++	For example 'feature,dev' will list all features branch (e.g : feature/*)
++	and the dev branch or dev/*.
++</div>
+\ No newline at end of file
+diff --git a/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/help-stashApiUrl.jelly b/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/help-stashApiUrl.jelly
+new file mode 100644
+index 0000000..30d5cb0
+--- /dev/null
++++ b/src/main/resources/org/jenkinsci/plugins/StashBranchParameter/StashBranchParameterDefinition/help-stashApiUrl.jelly
+@@ -0,0 +1,4 @@
++<div>
++    The URL to the stash API.<br/>
++    Usually http://<SERVER_IP>:<SERVER_PORT>/rest/api/1.0
++</div>
+\ No newline at end of file
+-- 
+1.9.4.msysgit.2
+
