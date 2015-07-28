@@ -3,6 +3,7 @@
          xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project">
     <f:entry title="${it.name}" description="${it.description}">
         <j:set var="defaultValueMap" value="${it.defaultValueMap}"/>
+        <j:set var="defaultValue" value="${it.defaultValue}"/>
         <div name="parameter" description="${it.description}">
             <input type="hidden" name="name" value="${it.name}" />
             <select name="value">
@@ -10,7 +11,10 @@
                     <optgroup label="${group.key}">
                         <j:forEach var="value" items="${group.value}">
                             <j:choose>
-                                <j:when test="${value.value.equals('master')}">
+                                <j:when test="${value.value eq defaultValue}">
+                                    <option value="${value.key}" selected="selected">${value.value}</option>
+                                </j:when>
+                                <j:when test="${value.value.equals('master') &amp;&amp; defaultValue.equals('')}" >
                                     <option value="${value.key}" selected="selected">${value.value}</option>
                                 </j:when>
                                 <j:otherwise>
