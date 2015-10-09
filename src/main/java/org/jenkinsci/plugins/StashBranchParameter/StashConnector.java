@@ -3,6 +3,7 @@ package org.jenkinsci.plugins.StashBranchParameter;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -24,6 +25,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
  * Created by erwin on 24/03/14.
@@ -52,19 +54,24 @@ public class StashConnector {
 
     }
 
-    public Map<String, String> getBranches(String project, String repo) {
+    public Map<String, String> getBranches(String project, String repo, String branchNameRegex) {
         String path = getBranchesPath(project, repo);
         path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
 
         JSONObject json = getJson(path);
         Map<String,String> map = new TreeMap<String, String>();
         if(json.has("values")){
+            Pattern pattern = compile(branchNameRegex);
             JSONArray values = json.getJSONArray("values");
             Iterator<JSONObject> iterator = values.iterator();
             while(iterator.hasNext()){
                 JSONObject branch = iterator.next();
                 if(branch.has("displayId")){
-                    map.put(branch.getString("displayId"), branch.getString("displayId"));
+                    String branchName = branch.getString("displayId");
+                    if (pattern != null && !pattern.matcher(branchName).matches()) {
+                        continue;
+                    }
+                    map.put(branchName, branchName);
                 }
             }
         }
@@ -72,19 +79,24 @@ public class StashConnector {
     }
 
 
-    public Map<String, String> getTags(String project, String repo) {
+    public Map<String, String> getTags(String project, String repo, String tagNameRegex) {
         String path = getTagsPath(project, repo);
         path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
 
         JSONObject json = getJson(path);
         Map<String,String> map = new TreeMap<String, String>();
         if(json.has("values")){
+            Pattern pattern = compile(tagNameRegex);
             JSONArray values = json.getJSONArray("values");
             Iterator<JSONObject> iterator = values.iterator();
             while(iterator.hasNext()){
                 JSONObject branch = iterator.next();
                 if(branch.has("displayId")){
-                    String value = "tags/".concat(branch.getString("displayId"));
+                    String tagName = branch.getString("displayId");
+                    if (pattern != null && !pattern.matcher(tagName).matches()) {
+                        continue;
+                    }
+                    String value = "tags/".concat(tagName);
                     map.put(value,value);
                 }
             }
@@ -198,5 +210,12 @@ public class StashConnector {
 
     private String getTagsPath(String project, String repo) {
         return getRepositoriesPath(project).concat("/").concat(repo).concat("/tags");
+    }
+
+    private Pattern compile(String regex) {
+        if (!StringUtils.isEmpty(regex)) {
+            return Pattern.compile(regex);
+        }
+        return null;
     }
 }
