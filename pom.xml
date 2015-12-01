@@ -8,7 +8,7 @@
     </parent>
 
     <artifactId>StashBranchParameter</artifactId>
-    <version>0.1.7-SNAPSHOT</version>
+    <version>0.2.0</version>
     <name>Stash Branch Parameter Plug-In</name>
     <packaging>hpi</packaging>
 
@@ -61,5 +61,6 @@
         <connection>scm:git:git://github.com/jenkinsci/stash-branch-parameters-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/stash-branch-parameters-plugin.git</developerConnection>
         <url>https://wiki.jenkins-ci.org/display/JENKINS/StashBranchParametern</url>
-    </scm>
+      <tag>StashBranchParameter-0.2.0</tag>
+  </scm>
 </project>
