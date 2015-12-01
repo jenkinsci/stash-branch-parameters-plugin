@@ -1,11 +1,9 @@
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define"
-         xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form"
-         xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
     <f:entry title="${it.name}" description="${it.description}">
         <j:set var="defaultValueMap" value="${it.defaultValueMap}"/>
         <j:set var="defaultValue" value="${it.defaultValue}"/>
         <div name="parameter" description="${it.description}">
-            <input type="hidden" name="name" value="${it.name}" />
+            <input type="hidden" name="name" value="${it.name}"/>
             <select name="value">
                 <j:forEach var="group" items="${defaultValueMap}">
                     <optgroup label="${group.key}">
@@ -14,7 +12,7 @@
                                 <j:when test="${value.value eq defaultValue}">
                                     <option value="${value.key}" selected="selected">${value.value}</option>
                                 </j:when>
-                                <j:when test="${value.value.equals('master') &amp;&amp; defaultValue.equals('')}" >
+                                <j:when test="${value.value.equals('master') &amp;&amp; defaultValue.equals('')}">
                                     <option value="${value.key}" selected="selected">${value.value}</option>
                                 </j:when>
                                 <j:otherwise>
@@ -25,6 +23,6 @@
                     </optgroup>
                 </j:forEach>
             </select>
-         </div>
-     </f:entry>
+        </div>
+    </f:entry>
 </j:jelly>
