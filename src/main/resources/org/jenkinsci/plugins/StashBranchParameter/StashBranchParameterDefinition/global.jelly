@@ -1,14 +1,13 @@
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
-         xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
     <f:section title="Stash branch parameter plugin">
         <f:entry title="Stash api url" field="stashApiUrl">
-            <f:textbox />
+            <f:textbox/>
         </f:entry>
         <f:entry title="Username" field="username">
-            <f:textbox />
+            <f:textbox/>
         </f:entry>
         <f:entry title="Password" field="password">
-            <f:password />
+            <f:password/>
         </f:entry>
     </f:section>
 </j:jelly>

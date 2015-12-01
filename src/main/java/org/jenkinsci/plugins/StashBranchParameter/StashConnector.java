@@ -22,181 +22,215 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.*;
-import java.util.logging.Logger;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
-/**
- * Created by erwin on 24/03/14.
- */
-public class StashConnector {
+public class StashConnector
+{
+	private String username;
+	private String password;
+	private URL url;
+	private CloseableHttpClient httpclient = null;
+	private HttpHost target = null;
+	private HttpClientContext localContext;
 
-    private static final Logger LOGGER = Logger.getLogger(StashConnector.class.getName());
+	public StashConnector(String stashApiUrl, String username, String password) throws MalformedURLException
+	{
+		this.username = username;
+		this.password = password;
+		url = new URL(stashApiUrl);
+		target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
 
+	}
 
-    private String stashApiUrl;
-    private String username;
-    private String password;
-    private URL url;
-    private CloseableHttpClient httpclient =null;
-    private HttpHost target = null;
-    private HttpClientContext localContext;
+	public Map<String, String> getBranches(String project, String repo)
+	{
+		String path = getBranchesPath(project, repo);
+		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
 
-    public StashConnector(String stashApiUrl, String username, String password) throws MalformedURLException {
-        this.stashApiUrl = stashApiUrl;
-        this.username = username;
-        this.password = password;
-        url = new URL(stashApiUrl);
-        target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
+		JSONObject json = getJson(path);
+		Map<String, String> map = new TreeMap<String, String>();
+		if (json.has("values"))
+		{
+			JSONArray values = json.getJSONArray("values");
+			for (Object object : values)
+			{
+				if (object instanceof JSONObject)
+				{
+					JSONObject branch = (JSONObject) object;
+					if (branch.has("displayId"))
+					{
+						map.put(branch.getString("displayId"), branch.getString("displayId"));
+					}
+				}
+			}
+		}
+		return map;
+	}
 
+	public Map<String, String> getTags(String project, String repo)
+	{
+		String path = getTagsPath(project, repo);
+		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
 
+		JSONObject json = getJson(path);
+		Map<String, String> map = new TreeMap<String, String>();
+		if (json.has("values"))
+		{
+			JSONArray values = json.getJSONArray("values");
 
-    }
+			for (Object object : values)
+			{
+				if (object instanceof JSONObject)
+				{
+					JSONObject branch = (JSONObject) object;
+					if (branch.has("displayId"))
+					{
+						String value = "tags/".concat(branch.getString("displayId"));
+						map.put(value, value);
+					}
+				}
+			}
+		}
+		return map;
+	}
 
-    public Map<String, String> getBranches(String project, String repo) {
-        String path = getBranchesPath(project, repo);
-        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+	public List<String> getProjects()
+	{
 
-        JSONObject json = getJson(path);
-        Map<String,String> map = new TreeMap<String, String>();
-        if(json.has("values")){
-            JSONArray values = json.getJSONArray("values");
-            Iterator<JSONObject> iterator = values.iterator();
-            while(iterator.hasNext()){
-                JSONObject branch = iterator.next();
-                if(branch.has("displayId")){
-                    map.put(branch.getString("displayId"), branch.getString("displayId"));
-                }
-            }
-        }
-        return map;
-    }
+		String path = getProjectsPath();
+		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+		JSONObject json = getJson(path);
 
+		List<String> list = new LinkedList<String>();
+		if (json.has("values"))
+		{
+			JSONArray values = json.getJSONArray("values");
+			for (Object object : values)
+			{
+				if (object instanceof JSONObject)
+				{
+					JSONObject project = (JSONObject) object;
+					if (project.has("key"))
+					{
+						list.add(project.getString("key"));
+					}
+				}
+			}
+		}
+		return list;
+	}
 
-    public Map<String, String> getTags(String project, String repo) {
-        String path = getTagsPath(project, repo);
-        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+	public Map<String, List<String>> getRepositories()
+	{
 
-        JSONObject json = getJson(path);
-        Map<String,String> map = new TreeMap<String, String>();
-        if(json.has("values")){
-            JSONArray values = json.getJSONArray("values");
-            Iterator<JSONObject> iterator = values.iterator();
-            while(iterator.hasNext()){
-                JSONObject branch = iterator.next();
-                if(branch.has("displayId")){
-                    String value = "tags/".concat(branch.getString("displayId"));
-                    map.put(value,value);
-                }
-            }
-        }
-        return map;
-    }
+		String path = getRepositoriesPath();
+		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+		JSONObject json = getJson(path);
+		Map<String, List<String>> map = new TreeMap<String, List<String>>();
+		if (json.has("values"))
+		{
+			JSONArray values = json.getJSONArray("values");
+			for (Object object : values)
+			{
+				if (object instanceof JSONObject)
+				{
+					JSONObject repo = (JSONObject) object;
+					JSONObject project = repo.getJSONObject("project");
+					addToMap(map, project.getString("key"), repo.getString("slug"));
+				}
+			}
+		}
+		return map;
+	}
 
-    public List<String> getProjects() {
+	private synchronized JSONObject getJson(String path)
+	{
+		try
+		{
+			initConnections();
+			HttpGet httpget = new HttpGet(path);
 
-        String path = getProjectsPath();
-        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
-        JSONObject json = getJson(path);
+			CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
+			try
+			{
+				HttpEntity entity = response.getEntity();
+				StringWriter writer = new StringWriter();
+				IOUtils.copy(entity.getContent(), writer);
 
-        List<String> list = new LinkedList<String>();
-        if (json.has("values")) {
-            JSONArray values = json.getJSONArray("values");
-            Iterator<JSONObject> iterator = values.iterator();
-            while (iterator.hasNext()) {
-                JSONObject project = iterator.next();
-                if (project.has("key")) {
-                    list.add(project.getString("key"));
-                }
-            }
-        }
-        return list;
-    }
+				return JSONObject.fromObject(writer.toString());
+			}
+			finally
+			{
+				response.close();
+			}
 
-    public Map<String, List<String>> getRepositories() {
+		}
+		catch (IOException e)
+		{
+			throw new RuntimeException();
+		}
+		finally
+		{
+			if (httpclient != null)
+			{
+				try
+				{
+					httpclient.close();
+				}
+				catch (IOException e)
+				{
+					throw new RuntimeException();
+				}
+			}
+		}
+	}
 
-        String path = getRepositoriesPath();
-        path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
-        JSONObject json = getJson(path);
-        Map<String, List<String>> map = new TreeMap<String, List<String>>();
-        if (json.has("values")) {
-            JSONArray values = json.getJSONArray("values");
-            Iterator<JSONObject> iterator = values.iterator();
-            while (iterator.hasNext()) {
-                JSONObject repo = iterator.next();
-                JSONObject project = repo.getJSONObject("project");
-                addToMap(map, project.getString("key"), repo.getString("slug"));
-            }
-        }
-        return map;
-    }
+	private void initConnections()
+	{
+		CredentialsProvider credsProvider = new BasicCredentialsProvider();
+		credsProvider.setCredentials(new AuthScope(target.getHostName(), target.getPort()), new UsernamePasswordCredentials(username, password));
+		httpclient = HttpClients.custom().setDefaultCredentialsProvider(credsProvider).build();
+		AuthCache authCache = new BasicAuthCache();
+		BasicScheme basicAuth = new BasicScheme();
+		authCache.put(target, basicAuth);
+		localContext = HttpClientContext.create();
+		localContext.setAuthCache(authCache);
+	}
 
-    private synchronized JSONObject getJson(String path){
-        try {
-            initConnections();
-            HttpGet httpget = new HttpGet(path);
+	private void addToMap(Map<String, List<String>> map, String key, String value)
+	{
+		if (!map.containsKey(key))
+		{
+			map.put(key, new LinkedList<String>());
+		}
+		map.get(key).add(value);
+	}
 
-            CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
-            try{
-                HttpEntity entity = response.getEntity();
-                StringWriter writer = new StringWriter();
-                IOUtils.copy(entity.getContent(), writer);
+	private String getRepositoriesPath()
+	{
+		return url.getPath().concat("/repos");
+	}
 
-                return JSONObject.fromObject(writer.toString());
-            }finally {
-                response.close();
-            }
+	private String getProjectsPath()
+	{
+		return url.getPath().concat("/projects");
+	}
 
-        } catch (IOException e) {
-            throw new RuntimeException();
-        }finally {
-            if(httpclient!=null)
-                try {
-                    httpclient.close();
-                } catch (IOException e) {
-                    throw new RuntimeException();
-                }
-        }
-    }
+	private String getRepositoriesPath(String project)
+	{
+		return getProjectsPath().concat("/").concat(project).concat("/repos");
+	}
 
-    private void initConnections() {
-        CredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(
-                new AuthScope(target.getHostName(), target.getPort()),
-                new UsernamePasswordCredentials(username, password));
-        httpclient = HttpClients.custom().setDefaultCredentialsProvider(credsProvider).build();
-        AuthCache authCache = new BasicAuthCache();
-        BasicScheme basicAuth = new BasicScheme();
-        authCache.put(target, basicAuth);
-        localContext = HttpClientContext.create();
-        localContext.setAuthCache(authCache);
-    }
+	private String getBranchesPath(String project, String repo)
+	{
+		return getRepositoriesPath(project).concat("/").concat(repo).concat("/branches");
+	}
 
-
-    private void addToMap(Map<String, List<String>> map, String key, String value) {
-        if(!map.containsKey(key)){
-            map.put(key, new LinkedList<String>());
-        }
-        map.get(key).add(value);
-    }
-
-
-    private String getRepositoriesPath(){
-        return url.getPath().concat("/repos");
-    }
-
-    private String getProjectsPath() {
-        return url.getPath().concat("/projects");
-    }
-
-    private String getRepositoriesPath(String project) {
-        return getProjectsPath().concat("/").concat(project).concat("/repos");
-    }
-
-    private String getBranchesPath(String project, String repo) {
-        return getRepositoriesPath(project).concat("/").concat(repo).concat("/branches");
-    }
-
-    private String getTagsPath(String project, String repo) {
-        return getRepositoriesPath(project).concat("/").concat(repo).concat("/tags");
-    }
+	private String getTagsPath(String project, String repo)
+	{
+		return getRepositoriesPath(project).concat("/").concat(repo).concat("/tags");
+	}
 }
