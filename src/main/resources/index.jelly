@@ -1,6 +1,4 @@
-<!--
-  This view is used to render the installed plugins page.
--->
+<?jelly escape-by-default='true'?>
 <div>
   This plugin lets the user to select a branch or tag. The plugin uses the rest-api off your local stash server.
 </div>
