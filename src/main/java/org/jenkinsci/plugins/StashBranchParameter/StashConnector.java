@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +29,6 @@ import java.util.TreeMap;
 
 public class StashConnector
 {
-	private String stashApiUrl;
 	private String username;
 	private String password;
 	private URL url;
@@ -40,7 +38,6 @@ public class StashConnector
 
 	public StashConnector(String stashApiUrl, String username, String password) throws MalformedURLException
 	{
-		this.stashApiUrl = stashApiUrl;
 		this.username = username;
 		this.password = password;
 		url = new URL(stashApiUrl);
@@ -111,13 +108,15 @@ public class StashConnector
 		if (json.has("values"))
 		{
 			JSONArray values = json.getJSONArray("values");
-			Iterator<JSONObject> iterator = values.iterator();
-			while (iterator.hasNext())
+			for (Object object : values)
 			{
-				JSONObject project = iterator.next();
-				if (project.has("key"))
+				if (object instanceof JSONObject)
 				{
-					list.add(project.getString("key"));
+					JSONObject project = (JSONObject) object;
+					if (project.has("key"))
+					{
+						list.add(project.getString("key"));
+					}
 				}
 			}
 		}
@@ -134,12 +133,14 @@ public class StashConnector
 		if (json.has("values"))
 		{
 			JSONArray values = json.getJSONArray("values");
-			Iterator<JSONObject> iterator = values.iterator();
-			while (iterator.hasNext())
+			for (Object object : values)
 			{
-				JSONObject repo = iterator.next();
-				JSONObject project = repo.getJSONObject("project");
-				addToMap(map, project.getString("key"), repo.getString("slug"));
+				if (object instanceof JSONObject)
+				{
+					JSONObject repo = (JSONObject) object;
+					JSONObject project = repo.getJSONObject("project");
+					addToMap(map, project.getString("key"), repo.getString("slug"));
+				}
 			}
 		}
 		return map;

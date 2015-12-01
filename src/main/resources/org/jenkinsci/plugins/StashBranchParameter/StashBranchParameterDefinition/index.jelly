@@ -1,10 +1,11 @@
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <link rel="stylesheet" type="text/css" href="${rootURL}/plugin/StashBranchParameter/chosen/chosen.min.css"/>
     <f:entry title="${it.name}" description="${it.description}">
         <j:set var="defaultValueMap" value="${it.defaultValueMap}"/>
         <j:set var="defaultValue" value="${it.defaultValue}"/>
         <div name="parameter" description="${it.description}">
             <input type="hidden" name="name" value="${it.name}"/>
-            <select name="value">
+            <select name="value" class="chosen-select" data-placeholder="${it.description}">
                 <j:forEach var="group" items="${defaultValueMap}">
                     <optgroup label="${group.key}">
                         <j:forEach var="value" items="${group.value}">
@@ -25,4 +26,7 @@
             </select>
         </div>
     </f:entry>
+
+    <script src="${rootURL}/plugin/StashBranchParameter/chosen/chosen.proto.min.js"/>
+    <script src="${rootURL}/plugin/StashBranchParameter/index.js"/>
 </j:jelly>
