@@ -5,11 +5,11 @@ import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.StringParameterValue;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 public class StashBranchParameterDefinition extends ParameterDefinition
@@ -73,17 +73,13 @@ public class StashBranchParameterDefinition extends ParameterDefinition
 
 	private Map<String, Map<String, String>> computeDefaultValueMap() throws IOException
 	{
-		String project = repository.split("/")[0];
-		String repo = repository.split("/")[1];
+		String[] projectAndRepo = repository.split("/");
+		String project = projectAndRepo[0];
+		String repo = projectAndRepo[1];
 		StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(), getDescriptor().getUsername(), getDescriptor().getPassword());
 
-		Map<String, String> map = connector.getBranches(project, repo);
-		if (StringUtils.isNotBlank(defaultValue))
-		{
-			map.put(defaultValue, defaultValue);
-		}
-		map.putAll(connector.getTags(project, repo));
-
+		List<String> map = connector.getBranches(project, repo);
+		map.addAll(connector.getTags(project, repo));
 		return MapsUtils.groupMap(map);
 	}
 

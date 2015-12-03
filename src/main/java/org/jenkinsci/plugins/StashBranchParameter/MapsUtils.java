@@ -1,28 +1,27 @@
 package org.jenkinsci.plugins.StashBranchParameter;
 
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 public class MapsUtils
 {
-	public static Map<String, Map<String, String>> groupMap(Map<String, String> map)
+	public static Map<String, Map<String, String>> groupMap(List<String> entries)
 	{
-		Set<Map.Entry<String, String>> entries = map.entrySet();
 
 		Map<String, Map<String, String>> result = new TreeMap<String, Map<String, String>>();
 
-		for (Map.Entry<String, String> entry : entries)
+		for (String entry : entries)
 		{
-			if (entry.getValue().contains("/"))
+			if (entry.contains("/"))
 			{
-				String group = entry.getValue().substring(0, entry.getValue().indexOf("/"));
-				String name = entry.getValue().substring(entry.getValue().indexOf("/") + 1);
-				addToGroup(result, group, entry.getKey(), name);
+				String group = entry.substring(0, entry.indexOf("/"));
+				String name = entry.substring(entry.indexOf("/") + 1);
+				addToGroup(result, group, entry, name);
 			}
 			else
 			{
-				addToGroup(result, "branch", entry.getKey(), entry.getValue());
+				addToGroup(result, "branch", entry, entry);
 			}
 		}
 		return result;

@@ -1,27 +1,16 @@
 package org.jenkinsci.plugins.StashBranchParameter;
 
-import net.sf.json.JSONArray;
-import net.sf.json.JSONObject;
-import org.apache.commons.io.IOUtils;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.AuthCache;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.impl.auth.BasicScheme;
-import org.apache.http.impl.client.BasicAuthCache;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import com.atlassian.stash.rest.client.api.entity.Branch;
+import com.atlassian.stash.rest.client.api.entity.Page;
+import com.atlassian.stash.rest.client.api.entity.Repository;
+import com.atlassian.stash.rest.client.core.StashClientImpl;
+import com.atlassian.stash.rest.client.httpclient.HttpClientConfig;
+import com.atlassian.stash.rest.client.httpclient.HttpClientHttpExecutor;
 
-import java.io.IOException;
-import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -29,175 +18,74 @@ import java.util.TreeMap;
 
 public class StashConnector
 {
-	private String username;
-	private String password;
-	private URL url;
-	private CloseableHttpClient httpclient = null;
-	private HttpHost target = null;
-	private HttpClientContext localContext;
+	private final StashClientImpl stashClient;
 
 	public StashConnector(String stashApiUrl, String username, String password) throws MalformedURLException
 	{
-		this.username = username;
-		this.password = password;
-		url = new URL(stashApiUrl);
-		target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
-
+		URL url = new URL(stashApiUrl);
+		HttpClientConfig httpClientConfig = new HttpClientConfig(url, username, password);
+		HttpClientHttpExecutor httpClientHttpExecutor = new HttpClientHttpExecutor(httpClientConfig);
+		stashClient = new StashClientImpl(httpClientHttpExecutor);
 	}
 
-	public Map<String, String> getBranches(String project, String repo)
+	public List<String> getBranches(final String project, final String repo)
 	{
-		String path = getBranchesPath(project, repo);
-		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
-
-		JSONObject json = getJson(path);
-		Map<String, String> map = new TreeMap<String, String>();
-		if (json.has("values"))
+		List<Branch> branches = new ResourceDepletor<Branch>()
 		{
-			JSONArray values = json.getJSONArray("values");
-			for (Object object : values)
+			@Override
+			protected Page<Branch> doPageCall(Integer nextPageStart)
 			{
-				if (object instanceof JSONObject)
-				{
-					JSONObject branch = (JSONObject) object;
-					if (branch.has("displayId"))
-					{
-						map.put(branch.getString("displayId"), branch.getString("displayId"));
-					}
-				}
+				return stashClient.getRepositoryBranches(project, repo, null, 0, 1000);
+
 			}
+		}.getAllValues();
+
+		List<String> branchIds = new ArrayList<String>();
+		for (Branch branch : branches)
+		{
+			branchIds.add(branch.getDisplayId());
 		}
-		return map;
+		return branchIds;
 	}
 
-	public Map<String, String> getTags(String project, String repo)
+	public List<String> getTags(final String project, final String repo)
 	{
-		String path = getTagsPath(project, repo);
-		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
-
-		JSONObject json = getJson(path);
-		Map<String, String> map = new TreeMap<String, String>();
-		if (json.has("values"))
-		{
-			JSONArray values = json.getJSONArray("values");
-
-			for (Object object : values)
-			{
-				if (object instanceof JSONObject)
-				{
-					JSONObject branch = (JSONObject) object;
-					if (branch.has("displayId"))
-					{
-						String value = "tags/".concat(branch.getString("displayId"));
-						map.put(value, value);
-					}
-				}
-			}
-		}
-		return map;
-	}
-
-	public List<String> getProjects()
-	{
-
-		String path = getProjectsPath();
-		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
-		JSONObject json = getJson(path);
-
-		List<String> list = new LinkedList<String>();
-		if (json.has("values"))
-		{
-			JSONArray values = json.getJSONArray("values");
-			for (Object object : values)
-			{
-				if (object instanceof JSONObject)
-				{
-					JSONObject project = (JSONObject) object;
-					if (project.has("key"))
-					{
-						list.add(project.getString("key"));
-					}
-				}
-			}
-		}
-		return list;
+//		List<Tag> branches = new ResourceDepletor<Tag>()
+//		{
+//			@Override
+//			protected Page<Tag> doPageCall(Integer nextPageStart)
+//			{
+//				return stashClient.getRepositoryTags(project, repo, null, 0, 1000);
+//
+//			}
+//		}.getAllValues();
+//
+//		List<String> branchIds = new ArrayList<String>();
+//		for (Tag branch : branches)
+//		{
+//			branchIds.add("tags/"+branch.getDisplayId());
+//		}
+//		return branchIds;
+		return Collections.emptyList();
 	}
 
 	public Map<String, List<String>> getRepositories()
 	{
-
-		String path = getRepositoriesPath();
-		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
-		JSONObject json = getJson(path);
-		Map<String, List<String>> map = new TreeMap<String, List<String>>();
-		if (json.has("values"))
+		List<Repository> repositories = new ResourceDepletor<Repository>()
 		{
-			JSONArray values = json.getJSONArray("values");
-			for (Object object : values)
+			@Override
+			protected Page<Repository> doPageCall(Integer nextPageStart)
 			{
-				if (object instanceof JSONObject)
-				{
-					JSONObject repo = (JSONObject) object;
-					JSONObject project = repo.getJSONObject("project");
-					addToMap(map, project.getString("key"), repo.getString("slug"));
-				}
+				return stashClient.getRepositories(null, null, nextPageStart, 1000);
 			}
+		}.getAllValues();
+
+		Map<String, List<String>> map = new TreeMap<String, List<String>>();
+		for (Repository repository : repositories)
+		{
+			addToMap(map, repository.getProject().getKey(), repository.getSlug());
 		}
 		return map;
-	}
-
-	private synchronized JSONObject getJson(String path)
-	{
-		try
-		{
-			initConnections();
-			HttpGet httpget = new HttpGet(path);
-
-			CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
-			try
-			{
-				HttpEntity entity = response.getEntity();
-				StringWriter writer = new StringWriter();
-				IOUtils.copy(entity.getContent(), writer);
-
-				return JSONObject.fromObject(writer.toString());
-			}
-			finally
-			{
-				response.close();
-			}
-
-		}
-		catch (IOException e)
-		{
-			throw new RuntimeException();
-		}
-		finally
-		{
-			if (httpclient != null)
-			{
-				try
-				{
-					httpclient.close();
-				}
-				catch (IOException e)
-				{
-					throw new RuntimeException();
-				}
-			}
-		}
-	}
-
-	private void initConnections()
-	{
-		CredentialsProvider credsProvider = new BasicCredentialsProvider();
-		credsProvider.setCredentials(new AuthScope(target.getHostName(), target.getPort()), new UsernamePasswordCredentials(username, password));
-		httpclient = HttpClients.custom().setDefaultCredentialsProvider(credsProvider).build();
-		AuthCache authCache = new BasicAuthCache();
-		BasicScheme basicAuth = new BasicScheme();
-		authCache.put(target, basicAuth);
-		localContext = HttpClientContext.create();
-		localContext.setAuthCache(authCache);
 	}
 
 	private void addToMap(Map<String, List<String>> map, String key, String value)
@@ -209,28 +97,23 @@ public class StashConnector
 		map.get(key).add(value);
 	}
 
-	private String getRepositoriesPath()
+	private abstract class ResourceDepletor<X>
 	{
-		return url.getPath().concat("/repos");
-	}
+		List<X> getAllValues()
+		{
+			List<X> values = new ArrayList<X>();
+			Page<X> pages = new Page<X>(0, 0, false, 0, 0, Collections.<X>emptyList());
 
-	private String getProjectsPath()
-	{
-		return url.getPath().concat("/projects");
-	}
+			do
+			{
+				pages = doPageCall(pages.getNextPageStart());
+				values.addAll(pages.getValues());
+			}
+			while (!pages.isLastPage());
 
-	private String getRepositoriesPath(String project)
-	{
-		return getProjectsPath().concat("/").concat(project).concat("/repos");
-	}
+			return values;
+		}
 
-	private String getBranchesPath(String project, String repo)
-	{
-		return getRepositoriesPath(project).concat("/").concat(repo).concat("/branches");
-	}
-
-	private String getTagsPath(String project, String repo)
-	{
-		return getRepositoriesPath(project).concat("/").concat(repo).concat("/tags");
+		protected abstract Page<X> doPageCall(Integer nextPageStart);
 	}
 }
