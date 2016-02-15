@@ -1,6 +1,8 @@
 StashBranchParametersPlugin
 ===========================
 
+Wiki page: https://wiki.jenkins-ci.org/display/JENKINS/StashBranchParameter
+
 Searches for branches and tags to use as a parameter
 
 ### Usage
