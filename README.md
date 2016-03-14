@@ -1,6 +1,8 @@
 StashBranchParametersPlugin
 ===========================
 
+[![Join the chat at https://gitter.im/jenkinsci/stash-branch-parameters-plugin](https://badges.gitter.im/jenkinsci/stash-branch-parameters-plugin.svg)](https://gitter.im/jenkinsci/stash-branch-parameters-plugin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Wiki page: https://wiki.jenkins-ci.org/display/JENKINS/StashBranchParameter
 
 Searches for branches and tags to use as a parameter
