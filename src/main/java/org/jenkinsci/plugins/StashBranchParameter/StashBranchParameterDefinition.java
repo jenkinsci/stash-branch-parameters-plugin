@@ -1,85 +1,97 @@
 package org.jenkinsci.plugins.StashBranchParameter;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.StaplerRequest;
+
 import hudson.Extension;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.StringParameterValue;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
 
-import java.io.IOException;
-import java.util.Map;
-
-public class StashBranchParameterDefinition extends ParameterDefinition
-{
+public class StashBranchParameterDefinition extends ParameterDefinition {
 	private String repository;
 	private String defaultValue;
+	private List<String> branchFilters;
 
 	@DataBoundConstructor
-	public StashBranchParameterDefinition(String name, String description, String repository, String defaultValue)
-	{
+	public StashBranchParameterDefinition(final String name, final String description, final String repository,
+			final String defaultValue, final String branchFilters) {
 		super(name, description);
 		this.repository = repository;
 		this.defaultValue = defaultValue;
+		this.branchFilters = new ArrayList<String>();
+		// Strip whitespace
+		for (final String filter : branchFilters.split(",")) {
+			this.branchFilters.add(filter.trim());
+		}
 	}
 
-	public String getRepository()
-	{
+	public String getRepository() {
 		return repository;
 	}
 
-	public void setRepository(String repository)
-	{
+	public void setRepository(final String repository) {
 		this.repository = repository;
 	}
 
-	public String getDefaultValue()
-	{
+	public List<String> getBranchFilters() {
+		return branchFilters;
+	}
+
+	public void setBranchFilters(final List<String> branchFilters) {
+		this.branchFilters = new ArrayList<String>(branchFilters);
+	}
+
+	public String getDefaultValue() {
 		return defaultValue;
 	}
 
-	public void setDefaultValue(String defaultValue)
-	{
+	public void setDefaultValue(final String defaultValue) {
 		this.defaultValue = defaultValue;
 	}
 
 	@Override
-	public ParameterValue createValue(StaplerRequest staplerRequest, JSONObject jsonObject)
-	{
-		String value = jsonObject.getString("value");
+	public ParameterValue createValue(final StaplerRequest staplerRequest, final JSONObject jsonObject) {
+		final String value = jsonObject.getString("value");
 		return new StringParameterValue(this.getName(), value);
 	}
 
 	@Override
-	public ParameterValue createValue(StaplerRequest staplerRequest)
-	{
-		String[] parameterValues = staplerRequest.getParameterValues(getName());
-		String value = parameterValues[0];
+	public ParameterValue createValue(final StaplerRequest staplerRequest) {
+		final String[] parameterValues = staplerRequest.getParameterValues(getName());
+		final String value = parameterValues[0];
 		return new StringParameterValue(this.getName(), value);
 	}
 
 	@Override
-	public ParameterValue getDefaultParameterValue()
-	{
+	public ParameterValue getDefaultParameterValue() {
 		return new StringParameterValue(this.getName(), defaultValue);
 	}
 
-	public Map<String, Map<String, String>> getDefaultValueMap() throws IOException
-	{
+	public Map<String, Map<String, String>> getDefaultValueMap() throws IOException {
 		return computeDefaultValueMap();
 	}
 
-	private Map<String, Map<String, String>> computeDefaultValueMap() throws IOException
-	{
-		String project = repository.split("/")[0];
-		String repo = repository.split("/")[1];
-		StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(), getDescriptor().getUsername(), getDescriptor().getPassword());
+	private Map<String, Map<String, String>> computeDefaultValueMap() throws IOException {
+		final String project = repository.split("/")[0];
+		final String repo = repository.split("/")[1];
+		final StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(), getDescriptor()
+				.getUsername(), getDescriptor().getPassword());
 
-		Map<String, String> map = connector.getBranches(project, repo);
-		if (StringUtils.isNotBlank(defaultValue))
-		{
+		final Map<String, String> map;
+		if (branchFilters.isEmpty()) {
+			map = connector.getBranches(project, repo);
+		} else {
+			map = connector.getFilteredBranches(project, repo, branchFilters);
+		}
+		if (StringUtils.isNotBlank(defaultValue)) {
 			map.put(defaultValue, defaultValue);
 		}
 		map.putAll(connector.getTags(project, repo));
@@ -88,14 +100,12 @@ public class StashBranchParameterDefinition extends ParameterDefinition
 	}
 
 	@Override
-	public StashBranchParameterDescriptorImpl getDescriptor()
-	{
+	public StashBranchParameterDescriptorImpl getDescriptor() {
 		return (StashBranchParameterDescriptorImpl) super.getDescriptor();
 	}
 
 	@Extension
-	public static class StashBranchParameterDescriptorImpl extends StashBranchParameterDescriptor
-	{
+	public static class StashBranchParameterDescriptorImpl extends StashBranchParameterDescriptor {
 
 	}
 

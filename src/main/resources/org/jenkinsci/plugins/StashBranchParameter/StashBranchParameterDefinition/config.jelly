@@ -13,5 +13,8 @@
         <f:entry title="Default value" field="defaultValue">
             <f:textbox/>
         </f:entry>
+         <f:entry title="Branch Filter" field="branchFilters">
+        	<f:textbox/>
+        </f:entry>
     </f:advanced>
 </j:jelly>
