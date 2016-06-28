@@ -7,6 +7,7 @@ import hudson.model.StringParameterValue;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.StaplerRequest;
 
 import java.io.IOException;
@@ -16,6 +17,8 @@ public class StashBranchParameterDefinition extends ParameterDefinition
 {
 	private String repository;
 	private String defaultValue;
+	private String branchNameRegex;
+	private String tagNameRegex;
 
 	@DataBoundConstructor
 	public StashBranchParameterDefinition(String name, String description, String repository, String defaultValue)
@@ -43,6 +46,24 @@ public class StashBranchParameterDefinition extends ParameterDefinition
 	public void setDefaultValue(String defaultValue)
 	{
 		this.defaultValue = defaultValue;
+	}
+
+	public String getBranchNameRegex() {
+		return branchNameRegex;
+	}
+
+	@DataBoundSetter
+	public void setBranchNameRegex(String branchNameRegex) {
+		this.branchNameRegex = branchNameRegex;
+	}
+
+	public String getTagNameRegex() {
+		return tagNameRegex;
+	}
+
+	@DataBoundSetter
+	public void setTagNameRegex(String tagNameRegex) {
+		this.tagNameRegex = tagNameRegex;
 	}
 
 	@Override
@@ -77,12 +98,12 @@ public class StashBranchParameterDefinition extends ParameterDefinition
 		String repo = repository.split("/")[1];
 		StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(), getDescriptor().getUsername(), getDescriptor().getPassword());
 
-		Map<String, String> map = connector.getBranches(project, repo);
+		Map<String, String> map = connector.getBranches(project, repo, branchNameRegex);
 		if (StringUtils.isNotBlank(defaultValue))
 		{
 			map.put(defaultValue, defaultValue);
 		}
-		map.putAll(connector.getTags(project, repo));
+		map.putAll(connector.getTags(project, repo, tagNameRegex));
 
 		return MapsUtils.groupMap(map);
 	}

@@ -3,6 +3,7 @@ package org.jenkinsci.plugins.StashBranchParameter;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -26,6 +27,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 public class StashConnector
 {
@@ -45,7 +47,7 @@ public class StashConnector
 
 	}
 
-	public Map<String, String> getBranches(String project, String repo)
+	public Map<String, String> getBranches(String project, String repo, String branchNameRegex)
 	{
 		String path = getBranchesPath(project, repo);
 		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
@@ -54,6 +56,7 @@ public class StashConnector
 		Map<String, String> map = new TreeMap<String, String>();
 		if (json.has("values"))
 		{
+			Pattern pattern = compile(branchNameRegex);
 			JSONArray values = json.getJSONArray("values");
 			for (Object object : values)
 			{
@@ -62,7 +65,12 @@ public class StashConnector
 					JSONObject branch = (JSONObject) object;
 					if (branch.has("displayId"))
 					{
-						map.put(branch.getString("displayId"), branch.getString("displayId"));
+						String branchName = branch.getString("displayId");
+						if (pattern != null && !pattern.matcher(branchName).matches())
+						{
+							continue;
+						}
+						map.put(branchName, branchName);
 					}
 				}
 			}
@@ -70,7 +78,7 @@ public class StashConnector
 		return map;
 	}
 
-	public Map<String, String> getTags(String project, String repo)
+	public Map<String, String> getTags(String project, String repo, String tagNameRegex)
 	{
 		String path = getTagsPath(project, repo);
 		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
@@ -79,6 +87,7 @@ public class StashConnector
 		Map<String, String> map = new TreeMap<String, String>();
 		if (json.has("values"))
 		{
+			Pattern pattern = compile(tagNameRegex);
 			JSONArray values = json.getJSONArray("values");
 
 			for (Object object : values)
@@ -88,8 +97,13 @@ public class StashConnector
 					JSONObject branch = (JSONObject) object;
 					if (branch.has("displayId"))
 					{
-						String value = "tags/".concat(branch.getString("displayId"));
-						map.put(value, value);
+						String tagName = branch.getString("displayId");
+						if (pattern != null && !pattern.matcher(tagName).matches())
+						{
+							continue;
+						}
+						String value = "tags/".concat(tagName);
+						map.put(value,value);
 					}
 				}
 			}
@@ -232,5 +246,12 @@ public class StashConnector
 	private String getTagsPath(String project, String repo)
 	{
 		return getRepositoriesPath(project).concat("/").concat(repo).concat("/tags");
+	}
+
+	private Pattern compile(String regex) {
+		if (!StringUtils.isEmpty(regex)) {
+			return Pattern.compile(regex);
+		}
+		return null;
 	}
 }
