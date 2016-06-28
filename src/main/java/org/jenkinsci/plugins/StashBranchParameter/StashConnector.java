@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -44,121 +45,146 @@ public class StashConnector
 		this.password = password;
 		url = new URL(stashApiUrl);
 		target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
-
 	}
 
 	public Map<String, String> getBranches(String project, String repo, String branchNameRegex)
 	{
 		String path = getBranchesPath(project, repo);
-		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
-
-		JSONObject json = getJson(path);
+		List<JSONObject> allJsonPages =
+                fetchAllAvailableJsonPages(path, "?orderBy=ALPHABETICAL&limit=1000");
 		Map<String, String> map = new TreeMap<String, String>();
-		if (json.has("values"))
-		{
-			Pattern pattern = compile(branchNameRegex);
-			JSONArray values = json.getJSONArray("values");
-			for (Object object : values)
-			{
-				if (object instanceof JSONObject)
-				{
-					JSONObject branch = (JSONObject) object;
-					if (branch.has("displayId"))
-					{
-						String branchName = branch.getString("displayId");
-						if (pattern != null && !pattern.matcher(branchName).matches())
-						{
-							continue;
-						}
-						map.put(branchName, branchName);
-					}
-				}
-			}
-		}
-		return map;
+
+        for (JSONObject json : allJsonPages){
+            if (json.has("values"))
+            {
+                Pattern pattern = compile(branchNameRegex);
+                JSONArray values = json.getJSONArray("values");
+                for (Object object : values)
+                {
+                    if (object instanceof JSONObject)
+                    {
+                        JSONObject branch = (JSONObject) object;
+                        if (branch.has("displayId"))
+                        {
+                            String branchName = branch.getString("displayId");
+                            if (pattern != null && !pattern.matcher(branchName).matches())
+                            {
+                                continue;
+                            }
+                            map.put(branchName, branchName);
+                        }
+                    }
+                }
+            }
+        }
+        return map;
 	}
 
 	public Map<String, String> getTags(String project, String repo, String tagNameRegex)
 	{
 		String path = getTagsPath(project, repo);
-		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
+        List<JSONObject> allJsonPages =
+                fetchAllAvailableJsonPages(path, "?orderBy=ALPHABETICAL&limit=1000");
+        Map<String, String> map = new TreeMap<String, String>();
+        for (JSONObject json : allJsonPages){
 
-		JSONObject json = getJson(path);
-		Map<String, String> map = new TreeMap<String, String>();
-		if (json.has("values"))
-		{
-			Pattern pattern = compile(tagNameRegex);
-			JSONArray values = json.getJSONArray("values");
+            if (json.has("values"))
+            {
+                Pattern pattern = compile(tagNameRegex);
+                JSONArray values = json.getJSONArray("values");
 
-			for (Object object : values)
-			{
-				if (object instanceof JSONObject)
-				{
-					JSONObject branch = (JSONObject) object;
-					if (branch.has("displayId"))
-					{
-						String tagName = branch.getString("displayId");
-						if (pattern != null && !pattern.matcher(tagName).matches())
-						{
-							continue;
-						}
-						String value = "tags/".concat(tagName);
-						map.put(value,value);
-					}
-				}
-			}
-		}
+                for (Object object : values)
+                {
+                    if (object instanceof JSONObject)
+                    {
+                        JSONObject branch = (JSONObject) object;
+                        if (branch.has("displayId"))
+                        {
+                            String tagName = branch.getString("displayId");
+                            if (pattern != null && !pattern.matcher(tagName).matches())
+                            {
+                                continue;
+                            }
+                            String value = "tags/".concat(tagName);
+                            map.put(value,value);
+                        }
+                    }
+                }
+            }
+        }
 		return map;
 	}
 
 	public List<String> getProjects()
 	{
-
 		String path = getProjectsPath();
-		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
-		JSONObject json = getJson(path);
-
+        List<JSONObject> allJsonPages =
+                fetchAllAvailableJsonPages(path, "?orderBy=ALPHABETICAL&limit=1000");
 		List<String> list = new LinkedList<String>();
-		if (json.has("values"))
-		{
-			JSONArray values = json.getJSONArray("values");
-			for (Object object : values)
-			{
-				if (object instanceof JSONObject)
-				{
-					JSONObject project = (JSONObject) object;
-					if (project.has("key"))
-					{
-						list.add(project.getString("key"));
-					}
-				}
-			}
-		}
+        for (JSONObject json : allJsonPages){
+            if (json.has("values"))
+            {
+                JSONArray values = json.getJSONArray("values");
+                for (Object object : values)
+                {
+                    if (object instanceof JSONObject)
+                    {
+                        JSONObject project = (JSONObject) object;
+                        if (project.has("key"))
+                        {
+                            list.add(project.getString("key"));
+                        }
+                    }
+                }
+            }
+        }
 		return list;
 	}
 
 	public Map<String, List<String>> getRepositories()
 	{
-
 		String path = getRepositoriesPath();
-		path = path.concat("?orderBy=ALPHABETICAL&limit=1000");
-		JSONObject json = getJson(path);
+        List<JSONObject> allJsonPages =
+                fetchAllAvailableJsonPages(path, "?orderBy=ALPHABETICAL&limit=1000");
 		Map<String, List<String>> map = new TreeMap<String, List<String>>();
-		if (json.has("values"))
-		{
-			JSONArray values = json.getJSONArray("values");
-			for (Object object : values)
-			{
-				if (object instanceof JSONObject)
-				{
-					JSONObject repo = (JSONObject) object;
-					JSONObject project = repo.getJSONObject("project");
-					addToMap(map, project.getString("key"), repo.getString("slug"));
-				}
-			}
-		}
+        for (JSONObject json : allJsonPages){
+            if (json.has("values"))
+            {
+                JSONArray values = json.getJSONArray("values");
+                for (Object object : values)
+                {
+                    if (object instanceof JSONObject)
+                    {
+                        JSONObject repo = (JSONObject) object;
+                        JSONObject project = repo.getJSONObject("project");
+                        addToMap(map, project.getString("key"), repo.getString("slug"));
+                    }
+                }
+            }
+        }
 		return map;
 	}
+
+    private synchronized List<JSONObject> fetchAllAvailableJsonPages(String path, String params)
+    {
+        List<JSONObject> jsonPages = new ArrayList<JSONObject>();
+        String startPath = path;
+        path += params;
+        JSONObject currentJson = getJson(path);
+        jsonPages.add(currentJson);
+        //TODO: I guess it should be recursive here
+        for (int attempt=0; attempt<100; attempt++)
+        {
+            if (currentJson.getBoolean("isLastPage"))
+            {
+                break;
+            }
+            path = startPath + params +"&start=" + currentJson.getInt("nextPageStart");
+            currentJson = getJson(path);
+            jsonPages.add(currentJson);
+        }
+        return jsonPages;
+    }
 
 	private synchronized JSONObject getJson(String path)
 	{
