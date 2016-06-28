@@ -13,5 +13,11 @@
         <f:entry title="Default value" field="defaultValue">
             <f:textbox/>
         </f:entry>
+        <f:entry title="Branch name regex" field="branchNameRegex">
+            <f:textbox/>
+        </f:entry>
+        <f:entry title="Tag name regex" field="tagNameRegex">
+            <f:textbox/>
+        </f:entry>
     </f:advanced>
 </j:jelly>
