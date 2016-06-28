@@ -158,7 +158,7 @@ public class StashConnector
 			{
 				HttpEntity entity = response.getEntity();
 				StringWriter writer = new StringWriter();
-				IOUtils.copy(entity.getContent(), writer);
+				IOUtils.copy(entity.getContent(), writer, "UTF-8");
 
 				return JSONObject.fromObject(writer.toString());
 			}
