@@ -169,20 +169,22 @@ public class StashConnector
     {
         List<JSONObject> jsonPages = new ArrayList<JSONObject>();
         String startPath = path;
-        path += params;
-        JSONObject currentJson = getJson(path);
-        jsonPages.add(currentJson);
-        //TODO: I guess it should be recursive here
-        for (int attempt=0; attempt<100; attempt++)
-        {
-            if (currentJson.getBoolean("isLastPage"))
-            {
-                break;
-            }
-            path = startPath + params +"&start=" + currentJson.getInt("nextPageStart");
-            currentJson = getJson(path);
-            jsonPages.add(currentJson);
-        }
+		int nextPageStart = 0;
+		JSONObject currentJson;
+        do
+		{
+			path = startPath + params +"&start=" + nextPageStart;
+			currentJson = getJson(path);
+			jsonPages.add(currentJson);
+			if(currentJson.has("isLastPage"))
+			{
+				if (!currentJson.getBoolean("isLastPage"))
+				{
+					nextPageStart = currentJson.getInt("nextPageStart");
+				}
+			}
+        }while(!currentJson.getBoolean("isLastPage"));
+
         return jsonPages;
     }
 
