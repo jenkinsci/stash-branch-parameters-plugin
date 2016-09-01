@@ -41,8 +41,8 @@ public class StashBranchParameterDefinition extends ParameterDefinition {
 		this.repository = repository;
 	}
 
-	public List<String> getBranchFilters() {
-		return branchFilters;
+	public String getBranchFilters() {
+		return branchFilters.isEmpty() ? "" : String.join(",", branchFilters);
 	}
 
 	public void setBranchFilters(final List<String> branchFilters) {
