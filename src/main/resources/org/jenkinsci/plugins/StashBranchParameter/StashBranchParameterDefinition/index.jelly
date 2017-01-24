@@ -2,7 +2,6 @@
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler">
     <link rel="stylesheet" type="text/css" href="${rootURL}/plugin/StashBranchParameter/chosen/chosen.min.css"/>
     <f:entry title="${it.name}" description="${it.description}">
-        <j:set var="defaultValue" value="${it.defaultValue}"/>
         <div name="parameter" description="${it.description}">
             <input type="hidden" name="name" value="${it.name}"/>
 
