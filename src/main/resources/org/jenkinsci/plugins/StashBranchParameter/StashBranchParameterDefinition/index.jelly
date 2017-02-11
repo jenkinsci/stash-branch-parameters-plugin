@@ -1,30 +1,11 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler">
     <link rel="stylesheet" type="text/css" href="${rootURL}/plugin/StashBranchParameter/chosen/chosen.min.css"/>
     <f:entry title="${it.name}" description="${it.description}">
-        <j:set var="defaultValueMap" value="${it.defaultValueMap}"/>
-        <j:set var="defaultValue" value="${it.defaultValue}"/>
         <div name="parameter" description="${it.description}">
             <input type="hidden" name="name" value="${it.name}"/>
-            <select name="value" class="chosen-select" data-placeholder="${it.description}">
-                <j:forEach var="group" items="${defaultValueMap}">
-                    <optgroup label="${group.key}">
-                        <j:forEach var="value" items="${group.value}">
-                            <j:choose>
-                                <j:when test="${value.value eq defaultValue}">
-                                    <option value="${value.key}" selected="selected">${value.value}</option>
-                                </j:when>
-                                <j:when test="${value.value.equals('master') &amp;&amp; defaultValue.equals('')}">
-                                    <option value="${value.key}" selected="selected">${value.value}</option>
-                                </j:when>
-                                <j:otherwise>
-                                    <option value="${value.key}">${value.value}</option>
-                                </j:otherwise>
-                            </j:choose>
-                        </j:forEach>
-                    </optgroup>
-                </j:forEach>
-            </select>
+
+            <st:include page="select.jelly" />
         </div>
     </f:entry>
 
