@@ -19,8 +19,8 @@ After installing this plugin you will find a new section **Stash branch paramete
 
 Enter your Stash instance API URL (example: `https://stash.yourcompany.com/rest/api/1.0`) and a Stash user's with appropriate permissions username and password. You will be immediately notified if the authentication succeeded (no message) or failed (a red error message will be shown). 
 
-###Refspec
-To be able to build at a tag, you have to change the refspec to :
+### Refspec
+To be able to build at a tag, you have to change the refspec to:
 ```
 +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/remotes/origin/tags/*
 ```
