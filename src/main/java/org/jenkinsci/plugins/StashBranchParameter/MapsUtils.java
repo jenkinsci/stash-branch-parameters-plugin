@@ -8,16 +8,15 @@ public class MapsUtils
 {
 	public static Map<String, Map<String, String>> groupMap(Map<String, String> map)
 	{
-		Set<Map.Entry<String, String>> entries = map.entrySet();
-
 		Map<String, Map<String, String>> result = new TreeMap<String, Map<String, String>>();
 
-		for (Map.Entry<String, String> entry : entries)
+		for (Map.Entry<String, String> entry : map.entrySet())
 		{
-			if (entry.getValue().contains("/"))
+			int slashIdx = entry.getValue().indexOf("/");
+			if (slashIdx > 0)
 			{
-				String group = entry.getValue().substring(0, entry.getValue().indexOf("/"));
-				String name = entry.getValue().substring(entry.getValue().indexOf("/") + 1);
+				String group = entry.getValue().substring(0, slashIdx);
+				String name = entry.getValue().substring(slashIdx + 1);
 				addToGroup(result, group, entry.getKey(), name);
 			}
 			else

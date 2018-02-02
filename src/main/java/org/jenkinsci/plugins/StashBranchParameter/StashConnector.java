@@ -54,10 +54,10 @@ public class StashConnector
                 fetchAllAvailableJsonPages(path, "?orderBy=ALPHABETICAL&limit=1000");
 		Map<String, String> map = new TreeMap<String, String>();
 
+		Pattern pattern = compile(branchNameRegex);
         for (JSONObject json : allJsonPages){
             if (json.has("values"))
             {
-                Pattern pattern = compile(branchNameRegex);
                 JSONArray values = json.getJSONArray("values");
                 for (Object object : values)
                 {
