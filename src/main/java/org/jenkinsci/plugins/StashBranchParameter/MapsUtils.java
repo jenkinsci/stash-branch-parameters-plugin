@@ -10,7 +10,7 @@ public class MapsUtils
 	{
 		Set<Map.Entry<String, String>> entries = map.entrySet();
 
-		Map<String, Map<String, String>> result = new TreeMap<String, Map<String, String>>();
+		Map<String, Map<String, String>> result = new TreeMap<>();
 
 		for (Map.Entry<String, String> entry : entries)
 		{

@@ -104,8 +104,7 @@ public class StashBranchParameterDescriptor extends ParameterDefinition.Paramete
 		return super.configure(req, formData);
 	}
 
-	public FormValidation doCheckUsername(@QueryParameter final String stashApiUrl, @QueryParameter final String username, @QueryParameter final String password) throws IOException, ServletException
-	{
+	public FormValidation doCheckUsername(@QueryParameter final String stashApiUrl, @QueryParameter final String username, @QueryParameter final String password) throws IOException {
 		if (StringUtils.isBlank(stashApiUrl))
 		{
 			return FormValidation.ok();
@@ -115,10 +114,8 @@ public class StashBranchParameterDescriptor extends ParameterDefinition.Paramete
 		HttpHost target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
 		CredentialsProvider credsProvider = new BasicCredentialsProvider();
 		credsProvider.setCredentials(new AuthScope(target.getHostName(), target.getPort()), new UsernamePasswordCredentials(username, password));
-		CloseableHttpClient httpclient = HttpClients.custom().setDefaultCredentialsProvider(credsProvider).build();
 
-		try
-		{
+		try (CloseableHttpClient httpClient = HttpClients.custom().setDefaultCredentialsProvider(credsProvider).build()) {
 			AuthCache authCache = new BasicAuthCache();
 			BasicScheme basicAuth = new BasicScheme();
 			authCache.put(target, basicAuth);
@@ -126,37 +123,19 @@ public class StashBranchParameterDescriptor extends ParameterDefinition.Paramete
 			localContext.setAuthCache(authCache);
 			HttpGet httpget = new HttpGet(url.getPath().concat("/repos"));
 
-			CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
-			try
-			{
-				if (response.getStatusLine().getStatusCode() != 200)
-				{
+			try (CloseableHttpResponse response = httpClient.execute(target, httpget, localContext)) {
+				if (response.getStatusLine().getStatusCode() != 200) {
 					return FormValidation.error("Authorization failed");
 				}
 				return FormValidation.ok();
 
 			}
-			finally
-			{
-				response.close();
-			}
-		}
-		catch (UnknownHostException e)
-		{
+		} catch (UnknownHostException | HttpHostConnectException e) {
 			return FormValidation.error("Couldn't connect with server");
-		}
-		catch (HttpHostConnectException e)
-		{
-			return FormValidation.error("Couldn't connect with server");
-		}
-		finally
-		{
-			httpclient.close();
 		}
 	}
 
-	public FormValidation doCheckPassword(@QueryParameter final String stashApiUrl, @QueryParameter final String username, @QueryParameter final String password) throws IOException, ServletException
-	{
+	public FormValidation doCheckPassword(@QueryParameter final String stashApiUrl, @QueryParameter final String username, @QueryParameter final String password) throws IOException {
 		return doCheckUsername(stashApiUrl, username, password);
 	}
 
