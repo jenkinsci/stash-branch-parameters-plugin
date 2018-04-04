@@ -32,14 +32,12 @@ import java.util.regex.Pattern;
 
 public class StashConnector
 {
-	private String username;
-	private String password;
+	private final String username;
+	private final String password;
 	private URL url;
-	private CloseableHttpClient httpclient = null;
-	private HttpHost target = null;
-	private HttpClientContext localContext;
+	private HttpHost target;
 
-	public StashConnector(String stashApiUrl, String username, String password) throws MalformedURLException
+    public StashConnector(String stashApiUrl, String username, String password) throws MalformedURLException
 	{
 		this.username = username;
 		this.password = password;
@@ -52,7 +50,7 @@ public class StashConnector
 		String path = getBranchesPath(project, repo);
 		List<JSONObject> allJsonPages =
                 fetchAllAvailableJsonPages(path, "?orderBy=ALPHABETICAL&limit=1000");
-		Map<String, String> map = new TreeMap<String, String>();
+		Map<String, String> map = new TreeMap<>();
 
         for (JSONObject json : allJsonPages){
             if (json.has("values"))
@@ -85,7 +83,7 @@ public class StashConnector
 		String path = getTagsPath(project, repo);
         List<JSONObject> allJsonPages =
                 fetchAllAvailableJsonPages(path, "?orderBy=ALPHABETICAL&limit=1000");
-        Map<String, String> map = new TreeMap<String, String>();
+        Map<String, String> map = new TreeMap<>();
         for (JSONObject json : allJsonPages){
 
             if (json.has("values"))
@@ -120,7 +118,7 @@ public class StashConnector
 		String path = getProjectsPath();
         List<JSONObject> allJsonPages =
                 fetchAllAvailableJsonPages(path, "?orderBy=ALPHABETICAL&limit=1000");
-		List<String> list = new LinkedList<String>();
+		List<String> list = new LinkedList<>();
         for (JSONObject json : allJsonPages){
             if (json.has("values"))
             {
@@ -146,7 +144,7 @@ public class StashConnector
 		String path = getRepositoriesPath();
         List<JSONObject> allJsonPages =
                 fetchAllAvailableJsonPages(path, "?orderBy=ALPHABETICAL&limit=1000");
-		Map<String, List<String>> map = new TreeMap<String, List<String>>();
+		Map<String, List<String>> map = new TreeMap<>();
         for (JSONObject json : allJsonPages){
             if (json.has("values"))
             {
@@ -167,7 +165,7 @@ public class StashConnector
 
     private synchronized List<JSONObject> fetchAllAvailableJsonPages(String path, String params)
     {
-        List<JSONObject> jsonPages = new ArrayList<JSONObject>();
+        List<JSONObject> jsonPages = new ArrayList<>();
         String startPath = path;
 		int nextPageStart = 0;
 		JSONObject currentJson;
@@ -192,57 +190,33 @@ public class StashConnector
 	{
 		try
 		{
-			initConnections();
-			HttpGet httpget = new HttpGet(path);
+            CredentialsProvider credsProvider = new BasicCredentialsProvider();
+            credsProvider.setCredentials(new AuthScope(target.getHostName(), target.getPort()), new UsernamePasswordCredentials(username, password));
 
-			CloseableHttpResponse response = httpclient.execute(target, httpget, localContext);
-			try
-			{
-				HttpEntity entity = response.getEntity();
-				StringWriter writer = new StringWriter();
-				IOUtils.copy(entity.getContent(), writer, "UTF-8");
+            try (CloseableHttpClient httpClient = HttpClients.custom().setDefaultCredentialsProvider(credsProvider).build()) {
+                AuthCache authCache = new BasicAuthCache();
+                BasicScheme basicAuth = new BasicScheme();
+                authCache.put(target, basicAuth);
+                HttpClientContext localContext = HttpClientContext.create();
+                localContext.setAuthCache(authCache);
+                HttpGet httpget = new HttpGet(path);
 
-				return JSONObject.fromObject(writer.toString());
-			}
-			finally
-			{
-				response.close();
-			}
+                try (CloseableHttpResponse response = httpClient.execute(target, httpget, localContext)) {
+                    HttpEntity entity = response.getEntity();
+                    StringWriter writer = new StringWriter();
+                    IOUtils.copy(entity.getContent(), writer, "UTF-8");
 
+                    return JSONObject.fromObject(writer.toString());
+                }
+            }
 		}
 		catch (IOException e)
 		{
-			throw new RuntimeException();
-		}
-		finally
-		{
-			if (httpclient != null)
-			{
-				try
-				{
-					httpclient.close();
-				}
-				catch (IOException e)
-				{
-					throw new RuntimeException();
-				}
-			}
+			throw new RuntimeException(e);
 		}
 	}
 
-	private void initConnections()
-	{
-		CredentialsProvider credsProvider = new BasicCredentialsProvider();
-		credsProvider.setCredentials(new AuthScope(target.getHostName(), target.getPort()), new UsernamePasswordCredentials(username, password));
-		httpclient = HttpClients.custom().setDefaultCredentialsProvider(credsProvider).build();
-		AuthCache authCache = new BasicAuthCache();
-		BasicScheme basicAuth = new BasicScheme();
-		authCache.put(target, basicAuth);
-		localContext = HttpClientContext.create();
-		localContext.setAuthCache(authCache);
-	}
-
-	private void addToMap(Map<String, List<String>> map, String key, String value)
+    private void addToMap(Map<String, List<String>> map, String key, String value)
 	{
 		if (!map.containsKey(key))
 		{
