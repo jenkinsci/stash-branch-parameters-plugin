@@ -13,6 +13,12 @@
         <f:entry title="Default value" field="defaultValue">
             <f:textbox/>
         </f:entry>
+        <f:entry title="Branch name filter" field="branchFilterText">
+            <f:textbox/>
+        </f:entry>
+        <f:entry title="Tag name filter" field="tagFilterText">
+            <f:textbox/>
+        </f:entry>
         <f:entry title="Branch name regex" field="branchNameRegex">
             <f:textbox/>
         </f:entry>

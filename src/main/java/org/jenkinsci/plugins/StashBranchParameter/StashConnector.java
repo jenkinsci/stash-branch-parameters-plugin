@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -34,7 +35,7 @@ public class StashConnector
 {
 	private final String username;
 	private final String password;
-	private URL url;
+	private final URL url;
 	private HttpHost target;
 
     public StashConnector(String stashApiUrl, String username, String password) throws MalformedURLException
@@ -45,17 +46,29 @@ public class StashConnector
 		target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
 	}
 
-	public Map<String, String> getBranches(String project, String repo, String branchNameRegex)
+	public Map<String, String> getBranches(String project, String repo, String branchNameRegex, String branchNameFilter)
 	{
+		if (branchNameRegex.equals("^$")) {
+			return new TreeMap<String, String>();
+		}
+
+		String params = "?orderBy=ALPHABETICAL&limit=1000";
+		if (branchNameFilter != null && branchNameFilter.equals("")) {
+			try {
+				params += "&filterText=" + URLEncoder.encode(branchNameFilter, "UTF-8");
+			} catch (Exception ignored) {
+			}
+		}
+
 		String path = getBranchesPath(project, repo);
 		List<JSONObject> allJsonPages =
-                fetchAllAvailableJsonPages(path, "?orderBy=ALPHABETICAL&limit=1000");
+                fetchAllAvailableJsonPages(path, params);
 		Map<String, String> map = new TreeMap<>();
+		Pattern pattern = compile(branchNameRegex);
 
         for (JSONObject json : allJsonPages){
             if (json.has("values"))
             {
-                Pattern pattern = compile(branchNameRegex);
                 JSONArray values = json.getJSONArray("values");
                 for (Object object : values)
                 {
@@ -78,17 +91,29 @@ public class StashConnector
         return map;
 	}
 
-	public Map<String, String> getTags(String project, String repo, String tagNameRegex)
+	public Map<String, String> getTags(String project, String repo, String tagNameRegex, String tagFilterText)
 	{
+		if (tagNameRegex.equals("^$")) {
+			return new TreeMap<String, String>();
+		}
+
+		String params = "?orderBy=ALPHABETICAL&limit=1000";
+		if (tagFilterText != null && tagFilterText.equals("")) {
+			try {
+				params += "&filterText=" + URLEncoder.encode(tagFilterText, "UTF-8");
+			} catch (Exception ignored) {
+			}
+		}
+
 		String path = getTagsPath(project, repo);
         List<JSONObject> allJsonPages =
-                fetchAllAvailableJsonPages(path, "?orderBy=ALPHABETICAL&limit=1000");
+                fetchAllAvailableJsonPages(path, params);
         Map<String, String> map = new TreeMap<>();
+        Pattern pattern = compile(tagNameRegex);
         for (JSONObject json : allJsonPages){
 
             if (json.has("values"))
             {
-                Pattern pattern = compile(tagNameRegex);
                 JSONArray values = json.getJSONArray("values");
 
                 for (Object object : values)

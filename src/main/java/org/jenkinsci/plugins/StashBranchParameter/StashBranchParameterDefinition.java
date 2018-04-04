@@ -15,17 +15,25 @@ import java.util.Map;
 
 public class StashBranchParameterDefinition extends ParameterDefinition
 {
-	private String repository;
-	private String defaultValue;
-	private String branchNameRegex;
-	private String tagNameRegex;
+	private final String repository;
+	private final String defaultValue;
+	private final String branchFilterText;
+	private final String tagFilterText;
+	private final String branchNameRegex;
+	private final String tagNameRegex;
 
 	@DataBoundConstructor
-	public StashBranchParameterDefinition(String name, String description, String repository, String defaultValue)
+	public StashBranchParameterDefinition(String name, String description, String repository, String defaultValue,
+                                          String branchFilterText, String tagFilterText, String branchNameRegex,
+                                          String tagNameRegex)
 	{
 		super(name, description);
 		this.repository = repository;
 		this.defaultValue = defaultValue;
+		this.branchFilterText = branchFilterText;
+		this.tagFilterText = tagFilterText;
+		this.branchNameRegex = branchNameRegex;
+		this.tagNameRegex = tagNameRegex;
 	}
 
 	public String getRepository()
@@ -33,37 +41,26 @@ public class StashBranchParameterDefinition extends ParameterDefinition
 		return repository;
 	}
 
-	public void setRepository(String repository)
-	{
-		this.repository = repository;
-	}
-
 	public String getDefaultValue()
 	{
 		return defaultValue;
 	}
 
-	public void setDefaultValue(String defaultValue)
+	public String getBranchFilterText()
 	{
-		this.defaultValue = defaultValue;
+		return branchFilterText;
+	}
+
+	public String getTagFilterText() {
+		return tagFilterText;
 	}
 
 	public String getBranchNameRegex() {
 		return branchNameRegex;
 	}
 
-	@DataBoundSetter
-	public void setBranchNameRegex(String branchNameRegex) {
-		this.branchNameRegex = branchNameRegex;
-	}
-
 	public String getTagNameRegex() {
 		return tagNameRegex;
-	}
-
-	@DataBoundSetter
-	public void setTagNameRegex(String tagNameRegex) {
-		this.tagNameRegex = tagNameRegex;
 	}
 
 	@Override
@@ -94,16 +91,17 @@ public class StashBranchParameterDefinition extends ParameterDefinition
 
 	private Map<String, Map<String, String>> computeDefaultValueMap() throws IOException
 	{
-		String project = repository.split("/")[0];
-		String repo = repository.split("/")[1];
+		String[] repositoryParts = repository.split("/");
+		String project = repositoryParts[0];
+		String repo = repositoryParts[1];
 		StashConnector connector = new StashConnector(getDescriptor().getStashApiUrl(), getDescriptor().getUsername(), getDescriptor().getPassword());
 
-		Map<String, String> map = connector.getBranches(project, repo, branchNameRegex);
+		Map<String, String> map = connector.getBranches(project, repo, branchNameRegex, branchFilterText);
 		if (StringUtils.isNotBlank(defaultValue))
 		{
 			map.put(defaultValue, defaultValue);
 		}
-		map.putAll(connector.getTags(project, repo, tagNameRegex));
+		map.putAll(connector.getTags(project, repo, tagNameRegex, tagFilterText));
 
 		return MapsUtils.groupMap(map);
 	}
