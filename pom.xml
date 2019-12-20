@@ -16,7 +16,7 @@
         <java.level>7</java.level>
     </properties>
 
-    <url>http://wiki.jenkins-ci.org/display/JENKINS/stash-branch-parameters-plugin</url>
+    <url>https://github.com/jenkinsci/stash-branch-parameters-plugin</url>
 
     <dependencies>
         <dependency>
